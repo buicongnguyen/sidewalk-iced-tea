@@ -1,4 +1,4 @@
-const CACHE_NAME = "sidewalk-iced-tea-planb-v6";
+const CACHE_NAME = "sidewalk-iced-tea-planb-v7";
 const CUSTOMER_ASSET_NAMES = [
   "customer-man",
   "customer-woman",
@@ -6,6 +6,12 @@ const CUSTOMER_ASSET_NAMES = [
   "customer-old-woman",
   "customer-young-boy",
   "customer-young-girl",
+  "customer-asian-man",
+  "customer-asian-woman",
+  "customer-asian-old-man",
+  "customer-asian-old-woman",
+  "customer-asian-young-boy",
+  "customer-asian-young-girl",
 ];
 const CUSTOMER_WALK_ASSETS = CUSTOMER_ASSET_NAMES.flatMap((name) =>
   Array.from(
@@ -34,6 +40,12 @@ const APP_SHELL = [
   "./public/assets/final/customer-old-woman.png",
   "./public/assets/final/customer-young-boy.png",
   "./public/assets/final/customer-young-girl.png",
+  "./public/assets/final/customer-asian-man.png",
+  "./public/assets/final/customer-asian-woman.png",
+  "./public/assets/final/customer-asian-old-man.png",
+  "./public/assets/final/customer-asian-old-woman.png",
+  "./public/assets/final/customer-asian-young-boy.png",
+  "./public/assets/final/customer-asian-young-girl.png",
   "./public/assets/final/icon-coin.png",
   "./public/assets/final/icon-rain.png",
   "./public/assets/final/icon-umbrella.png",

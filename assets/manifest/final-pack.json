@@ -1,7 +1,7 @@
 {
   "pack": "final",
-  "version": 5,
-  "generatedWith": "Codex imagegen + Game Studio sprite pipeline normalization + procedural walk-frame and served-pose derivation",
+  "version": 6,
+  "generatedWith": "Codex imagegen + Game Studio sprite pipeline normalization + procedural walk-frame, served-pose, and Asian customer variant derivation",
   "sourcePrompts": [
     "cohesive 2D game asset sheet for a cozy iced tea stall management game",
     "cozy hand-painted pixel-art inspired tea shop interior",
@@ -19,7 +19,13 @@
     "customer_old_man": "./client/public/assets/final/customer-old-man.png",
     "customer_old_woman": "./client/public/assets/final/customer-old-woman.png",
     "customer_young_boy": "./client/public/assets/final/customer-young-boy.png",
-    "customer_young_girl": "./client/public/assets/final/customer-young-girl.png"
+    "customer_young_girl": "./client/public/assets/final/customer-young-girl.png",
+    "customer_asian_man": "./client/public/assets/final/customer-asian-man.png",
+    "customer_asian_woman": "./client/public/assets/final/customer-asian-woman.png",
+    "customer_asian_old_man": "./client/public/assets/final/customer-asian-old-man.png",
+    "customer_asian_old_woman": "./client/public/assets/final/customer-asian-old-woman.png",
+    "customer_asian_young_boy": "./client/public/assets/final/customer-asian-young-boy.png",
+    "customer_asian_young_girl": "./client/public/assets/final/customer-asian-young-girl.png"
   },
   "walkFrames": {
     "frameCount": 4,
@@ -28,7 +34,13 @@
     "customer_old_man": "./client/public/assets/final/walk/customer-old-man-walk-{frame}.png",
     "customer_old_woman": "./client/public/assets/final/walk/customer-old-woman-walk-{frame}.png",
     "customer_young_boy": "./client/public/assets/final/walk/customer-young-boy-walk-{frame}.png",
-    "customer_young_girl": "./client/public/assets/final/walk/customer-young-girl-walk-{frame}.png"
+    "customer_young_girl": "./client/public/assets/final/walk/customer-young-girl-walk-{frame}.png",
+    "customer_asian_man": "./client/public/assets/final/walk/customer-asian-man-walk-{frame}.png",
+    "customer_asian_woman": "./client/public/assets/final/walk/customer-asian-woman-walk-{frame}.png",
+    "customer_asian_old_man": "./client/public/assets/final/walk/customer-asian-old-man-walk-{frame}.png",
+    "customer_asian_old_woman": "./client/public/assets/final/walk/customer-asian-old-woman-walk-{frame}.png",
+    "customer_asian_young_boy": "./client/public/assets/final/walk/customer-asian-young-boy-walk-{frame}.png",
+    "customer_asian_young_girl": "./client/public/assets/final/walk/customer-asian-young-girl-walk-{frame}.png"
   },
   "servedFrames": {
     "customer_man": "./client/public/assets/final/served/customer-man-served.png",
@@ -36,6 +48,12 @@
     "customer_old_man": "./client/public/assets/final/served/customer-old-man-served.png",
     "customer_old_woman": "./client/public/assets/final/served/customer-old-woman-served.png",
     "customer_young_boy": "./client/public/assets/final/served/customer-young-boy-served.png",
-    "customer_young_girl": "./client/public/assets/final/served/customer-young-girl-served.png"
+    "customer_young_girl": "./client/public/assets/final/served/customer-young-girl-served.png",
+    "customer_asian_man": "./client/public/assets/final/served/customer-asian-man-served.png",
+    "customer_asian_woman": "./client/public/assets/final/served/customer-asian-woman-served.png",
+    "customer_asian_old_man": "./client/public/assets/final/served/customer-asian-old-man-served.png",
+    "customer_asian_old_woman": "./client/public/assets/final/served/customer-asian-old-woman-served.png",
+    "customer_asian_young_boy": "./client/public/assets/final/served/customer-asian-young-boy-served.png",
+    "customer_asian_young_girl": "./client/public/assets/final/served/customer-asian-young-girl-served.png"
   }
 }

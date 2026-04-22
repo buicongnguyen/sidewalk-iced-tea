@@ -17,6 +17,12 @@ const CUSTOMER_TYPES = [
   "old_woman",
   "young_boy",
   "young_girl",
+  "asian_man",
+  "asian_woman",
+  "asian_old_man",
+  "asian_old_woman",
+  "asian_young_boy",
+  "asian_young_girl",
 ];
 
 let serverProcess;
@@ -188,8 +194,26 @@ try {
           served: resources.filter((entry) => entry.name.includes("/served/")).length,
         };
       });
-      expectEqual(resourceCounts.walk, 24, "all walk frames should load");
-      expectEqual(resourceCounts.served, 6, "all served drink pose sprites should load");
+      expectEqual(resourceCounts.walk, 48, "all walk frames should load");
+      expectEqual(resourceCounts.served, 12, "all served drink pose sprites should load");
+      await page.context().close();
+    });
+
+    await runFlow(results, "active customer types stay unique", async () => {
+      const page = await newPage(browser, makeNearlyFullUniqueSave(), { randomValue: 0 });
+      await page.goto(serverUrl, { waitUntil: "networkidle" });
+      await waitForApp(page);
+      await page.click("#start-button");
+      await page.waitForFunction(
+        () => window.__planBGame.getSnapshot().customers.length === 8,
+      );
+      const snapshot = await getSnapshot(page);
+      const activeTypes = snapshot.customers.map((customer) => customer.type);
+      expectEqual(
+        new Set(activeTypes).size,
+        activeTypes.length,
+        "screen should not contain duplicate customer types",
+      );
       await page.context().close();
     });
 
@@ -296,13 +320,19 @@ async function waitForServer(child) {
   });
 }
 
-async function newPage(browser, saveState) {
+async function newPage(browser, saveState, options = {}) {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     isMobile: true,
     hasTouch: true,
     serviceWorkers: "block",
   });
+
+  if (Number.isFinite(options.randomValue)) {
+    await context.addInitScript((value) => {
+      Math.random = () => value;
+    }, options.randomValue);
+  }
 
   if (saveState) {
     await context.addInitScript(
@@ -427,6 +457,27 @@ function makeFullTableSave() {
     const customer = makeCustomer({
       id: index + 1,
       type: CUSTOMER_TYPES[index % CUSTOMER_TYPES.length],
+      layout,
+      waitElapsed: 1,
+    });
+    const table = state.tables.find((entry) => entry.id === layout.id);
+    table.status = "waiting";
+    table.customerId = customer.id;
+    table.waitElapsed = 1;
+    state.customers.push(customer);
+  });
+
+  return state;
+}
+
+function makeNearlyFullUniqueSave() {
+  const activeCustomerCount = TABLE_LAYOUT.length - 1;
+  const state = makeBaseSave({ nextCustomerId: activeCustomerCount + 1, spawnTimer: 0 });
+
+  TABLE_LAYOUT.slice(0, activeCustomerCount).forEach((layout, index) => {
+    const customer = makeCustomer({
+      id: index + 1,
+      type: CUSTOMER_TYPES[index],
       layout,
       waitElapsed: 1,
     });

@@ -34,6 +34,12 @@ const CUSTOMER_TYPES = [
   { id: "old_woman", assetId: "customer_old_woman", label: "Old woman" },
   { id: "young_boy", assetId: "customer_young_boy", label: "Young boy" },
   { id: "young_girl", assetId: "customer_young_girl", label: "Young girl" },
+  { id: "asian_man", assetId: "customer_asian_man", label: "Asian man" },
+  { id: "asian_woman", assetId: "customer_asian_woman", label: "Asian woman" },
+  { id: "asian_old_man", assetId: "customer_asian_old_man", label: "Asian older man" },
+  { id: "asian_old_woman", assetId: "customer_asian_old_woman", label: "Asian older woman" },
+  { id: "asian_young_boy", assetId: "customer_asian_young_boy", label: "Asian young boy" },
+  { id: "asian_young_girl", assetId: "customer_asian_young_girl", label: "Asian young girl" },
 ];
 
 const BASE_ASSET_PATHS = {
@@ -46,6 +52,12 @@ const BASE_ASSET_PATHS = {
   customer_old_woman: "./public/assets/final/customer-old-woman.png",
   customer_young_boy: "./public/assets/final/customer-young-boy.png",
   customer_young_girl: "./public/assets/final/customer-young-girl.png",
+  customer_asian_man: "./public/assets/final/customer-asian-man.png",
+  customer_asian_woman: "./public/assets/final/customer-asian-woman.png",
+  customer_asian_old_man: "./public/assets/final/customer-asian-old-man.png",
+  customer_asian_old_woman: "./public/assets/final/customer-asian-old-woman.png",
+  customer_asian_young_boy: "./public/assets/final/customer-asian-young-boy.png",
+  customer_asian_young_girl: "./public/assets/final/customer-asian-young-girl.png",
 };
 
 const ASSET_PATHS = {
@@ -518,13 +530,12 @@ function updateSpawning(deltaSeconds) {
     return;
   }
 
-  if (!findFreeTableLayout()) {
+  if (!spawnCustomer()) {
     gameState.stats.dropped += 1;
     gameState.spawnTimer = randomSpawnInterval(getSpawnRateMultiplier());
     return;
   }
 
-  spawnCustomer();
   gameState.spawnTimer = randomSpawnInterval(getSpawnRateMultiplier());
 }
 
@@ -664,10 +675,14 @@ function syncTablesFromCustomers() {
 function spawnCustomer() {
   const freeTable = findFreeTableLayout();
   if (!freeTable) {
-    return;
+    return false;
   }
 
-  const customerType = CUSTOMER_TYPES[Math.floor(Math.random() * CUSTOMER_TYPES.length)];
+  const customerType = findAvailableCustomerType();
+  if (!customerType) {
+    return false;
+  }
+
   const customerId = gameState.nextCustomerId;
   gameState.nextCustomerId += 1;
 
@@ -695,6 +710,7 @@ function spawnCustomer() {
   table.customerId = customerId;
   table.lastOutcome = null;
   gameState.customers.push(customer);
+  return true;
 }
 
 function beginExit(customer, table) {
@@ -1472,6 +1488,17 @@ function findFreeTableLayout() {
   }
 
   return freeTables[Math.floor(Math.random() * freeTables.length)];
+}
+
+function findAvailableCustomerType() {
+  const activeTypes = new Set(gameState.customers.map((customer) => customer.type));
+  const availableTypes = CUSTOMER_TYPES.filter((customerType) => !activeTypes.has(customerType.id));
+
+  if (availableTypes.length === 0) {
+    return null;
+  }
+
+  return availableTypes[Math.floor(Math.random() * availableTypes.length)];
 }
 
 function currentServeTime() {
