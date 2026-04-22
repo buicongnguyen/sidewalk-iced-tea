@@ -1,7 +1,7 @@
 {
   "pack": "final",
-  "version": 6,
-  "generatedWith": "Codex imagegen + Game Studio sprite pipeline normalization + procedural walk-frame, served-pose, and Asian customer variant derivation",
+  "version": 7,
+  "generatedWith": "Codex imagegen + Game Studio sprite pipeline normalization + procedural walk-frame, served-pose, Asian customer, and coordinated palette variant derivation",
   "sourcePrompts": [
     "cohesive 2D game asset sheet for a cozy iced tea stall management game",
     "cozy hand-painted pixel-art inspired tea shop interior",
@@ -25,7 +25,19 @@
     "customer_asian_old_man": "./client/public/assets/final/customer-asian-old-man.png",
     "customer_asian_old_woman": "./client/public/assets/final/customer-asian-old-woman.png",
     "customer_asian_young_boy": "./client/public/assets/final/customer-asian-young-boy.png",
-    "customer_asian_young_girl": "./client/public/assets/final/customer-asian-young-girl.png"
+    "customer_asian_young_girl": "./client/public/assets/final/customer-asian-young-girl.png",
+    "customer_man_teal": "./client/public/assets/final/customer-man-teal.png",
+    "customer_woman_rose": "./client/public/assets/final/customer-woman-rose.png",
+    "customer_old_man_sage": "./client/public/assets/final/customer-old-man-sage.png",
+    "customer_old_woman_lilac": "./client/public/assets/final/customer-old-woman-lilac.png",
+    "customer_young_boy_cobalt": "./client/public/assets/final/customer-young-boy-cobalt.png",
+    "customer_young_girl_coral": "./client/public/assets/final/customer-young-girl-coral.png",
+    "customer_asian_man_indigo": "./client/public/assets/final/customer-asian-man-indigo.png",
+    "customer_asian_woman_mint": "./client/public/assets/final/customer-asian-woman-mint.png",
+    "customer_asian_old_man_ochre": "./client/public/assets/final/customer-asian-old-man-ochre.png",
+    "customer_asian_old_woman_berry": "./client/public/assets/final/customer-asian-old-woman-berry.png",
+    "customer_asian_young_boy_lime": "./client/public/assets/final/customer-asian-young-boy-lime.png",
+    "customer_asian_young_girl_violet": "./client/public/assets/final/customer-asian-young-girl-violet.png"
   },
   "walkFrames": {
     "frameCount": 4,
@@ -40,7 +52,19 @@
     "customer_asian_old_man": "./client/public/assets/final/walk/customer-asian-old-man-walk-{frame}.png",
     "customer_asian_old_woman": "./client/public/assets/final/walk/customer-asian-old-woman-walk-{frame}.png",
     "customer_asian_young_boy": "./client/public/assets/final/walk/customer-asian-young-boy-walk-{frame}.png",
-    "customer_asian_young_girl": "./client/public/assets/final/walk/customer-asian-young-girl-walk-{frame}.png"
+    "customer_asian_young_girl": "./client/public/assets/final/walk/customer-asian-young-girl-walk-{frame}.png",
+    "customer_man_teal": "./client/public/assets/final/walk/customer-man-teal-walk-{frame}.png",
+    "customer_woman_rose": "./client/public/assets/final/walk/customer-woman-rose-walk-{frame}.png",
+    "customer_old_man_sage": "./client/public/assets/final/walk/customer-old-man-sage-walk-{frame}.png",
+    "customer_old_woman_lilac": "./client/public/assets/final/walk/customer-old-woman-lilac-walk-{frame}.png",
+    "customer_young_boy_cobalt": "./client/public/assets/final/walk/customer-young-boy-cobalt-walk-{frame}.png",
+    "customer_young_girl_coral": "./client/public/assets/final/walk/customer-young-girl-coral-walk-{frame}.png",
+    "customer_asian_man_indigo": "./client/public/assets/final/walk/customer-asian-man-indigo-walk-{frame}.png",
+    "customer_asian_woman_mint": "./client/public/assets/final/walk/customer-asian-woman-mint-walk-{frame}.png",
+    "customer_asian_old_man_ochre": "./client/public/assets/final/walk/customer-asian-old-man-ochre-walk-{frame}.png",
+    "customer_asian_old_woman_berry": "./client/public/assets/final/walk/customer-asian-old-woman-berry-walk-{frame}.png",
+    "customer_asian_young_boy_lime": "./client/public/assets/final/walk/customer-asian-young-boy-lime-walk-{frame}.png",
+    "customer_asian_young_girl_violet": "./client/public/assets/final/walk/customer-asian-young-girl-violet-walk-{frame}.png"
   },
   "servedFrames": {
     "customer_man": "./client/public/assets/final/served/customer-man-served.png",
@@ -54,6 +78,18 @@
     "customer_asian_old_man": "./client/public/assets/final/served/customer-asian-old-man-served.png",
     "customer_asian_old_woman": "./client/public/assets/final/served/customer-asian-old-woman-served.png",
     "customer_asian_young_boy": "./client/public/assets/final/served/customer-asian-young-boy-served.png",
-    "customer_asian_young_girl": "./client/public/assets/final/served/customer-asian-young-girl-served.png"
+    "customer_asian_young_girl": "./client/public/assets/final/served/customer-asian-young-girl-served.png",
+    "customer_man_teal": "./client/public/assets/final/served/customer-man-teal-served.png",
+    "customer_woman_rose": "./client/public/assets/final/served/customer-woman-rose-served.png",
+    "customer_old_man_sage": "./client/public/assets/final/served/customer-old-man-sage-served.png",
+    "customer_old_woman_lilac": "./client/public/assets/final/served/customer-old-woman-lilac-served.png",
+    "customer_young_boy_cobalt": "./client/public/assets/final/served/customer-young-boy-cobalt-served.png",
+    "customer_young_girl_coral": "./client/public/assets/final/served/customer-young-girl-coral-served.png",
+    "customer_asian_man_indigo": "./client/public/assets/final/served/customer-asian-man-indigo-served.png",
+    "customer_asian_woman_mint": "./client/public/assets/final/served/customer-asian-woman-mint-served.png",
+    "customer_asian_old_man_ochre": "./client/public/assets/final/served/customer-asian-old-man-ochre-served.png",
+    "customer_asian_old_woman_berry": "./client/public/assets/final/served/customer-asian-old-woman-berry-served.png",
+    "customer_asian_young_boy_lime": "./client/public/assets/final/served/customer-asian-young-boy-lime-served.png",
+    "customer_asian_young_girl_violet": "./client/public/assets/final/served/customer-asian-young-girl-violet-served.png"
   }
 }

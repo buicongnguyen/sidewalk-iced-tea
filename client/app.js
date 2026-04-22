@@ -40,28 +40,29 @@ const CUSTOMER_TYPES = [
   { id: "asian_old_woman", assetId: "customer_asian_old_woman", label: "Asian older woman" },
   { id: "asian_young_boy", assetId: "customer_asian_young_boy", label: "Asian young boy" },
   { id: "asian_young_girl", assetId: "customer_asian_young_girl", label: "Asian young girl" },
+  { id: "man_teal", assetId: "customer_man_teal", label: "Teal man" },
+  { id: "woman_rose", assetId: "customer_woman_rose", label: "Rose woman" },
+  { id: "old_man_sage", assetId: "customer_old_man_sage", label: "Sage elder" },
+  { id: "old_woman_lilac", assetId: "customer_old_woman_lilac", label: "Lilac elder" },
+  { id: "young_boy_cobalt", assetId: "customer_young_boy_cobalt", label: "Cobalt boy" },
+  { id: "young_girl_coral", assetId: "customer_young_girl_coral", label: "Coral girl" },
+  { id: "asian_man_indigo", assetId: "customer_asian_man_indigo", label: "Indigo man" },
+  { id: "asian_woman_mint", assetId: "customer_asian_woman_mint", label: "Mint woman" },
+  { id: "asian_old_man_ochre", assetId: "customer_asian_old_man_ochre", label: "Ochre elder" },
+  { id: "asian_old_woman_berry", assetId: "customer_asian_old_woman_berry", label: "Berry elder" },
+  { id: "asian_young_boy_lime", assetId: "customer_asian_young_boy_lime", label: "Lime boy" },
+  { id: "asian_young_girl_violet", assetId: "customer_asian_young_girl_violet", label: "Violet girl" },
 ];
 
 const BASE_ASSET_PATHS = {
   bg_room: "./public/assets/final/bg-room.png",
   stall_counter: "./public/assets/final/stall-counter.png",
   table_slot: "./public/assets/final/table-slot.png",
-  customer_man: "./public/assets/final/customer-man.png",
-  customer_woman: "./public/assets/final/customer-woman.png",
-  customer_old_man: "./public/assets/final/customer-old-man.png",
-  customer_old_woman: "./public/assets/final/customer-old-woman.png",
-  customer_young_boy: "./public/assets/final/customer-young-boy.png",
-  customer_young_girl: "./public/assets/final/customer-young-girl.png",
-  customer_asian_man: "./public/assets/final/customer-asian-man.png",
-  customer_asian_woman: "./public/assets/final/customer-asian-woman.png",
-  customer_asian_old_man: "./public/assets/final/customer-asian-old-man.png",
-  customer_asian_old_woman: "./public/assets/final/customer-asian-old-woman.png",
-  customer_asian_young_boy: "./public/assets/final/customer-asian-young-boy.png",
-  customer_asian_young_girl: "./public/assets/final/customer-asian-young-girl.png",
 };
 
 const ASSET_PATHS = {
   ...BASE_ASSET_PATHS,
+  ...buildCustomerBaseAssetPaths(),
   ...buildWalkAssetPaths(),
   ...buildServedAssetPaths(),
 };
@@ -1593,12 +1594,25 @@ function normalizeWaypoints(waypoints, tableLayout, phase) {
   return [];
 }
 
+function customerAssetSlug(customerType) {
+  return customerType.id.replaceAll("_", "-");
+}
+
+function buildCustomerBaseAssetPaths() {
+  return Object.fromEntries(
+    CUSTOMER_TYPES.map((customerType) => [
+      customerType.assetId,
+      `./public/assets/final/customer-${customerAssetSlug(customerType)}.png`,
+    ]),
+  );
+}
+
 function buildWalkAssetPaths() {
   return Object.fromEntries(
     CUSTOMER_TYPES.flatMap((customerType) =>
       Array.from({ length: WALK_FRAME_COUNT }, (_, frameIndex) => [
         `${customerType.assetId}_walk_${frameIndex}`,
-        `./public/assets/final/walk/customer-${customerType.id.replaceAll("_", "-")}-walk-${frameIndex}.png`,
+        `./public/assets/final/walk/customer-${customerAssetSlug(customerType)}-walk-${frameIndex}.png`,
       ]),
     ),
   );
@@ -1608,7 +1622,7 @@ function buildServedAssetPaths() {
   return Object.fromEntries(
     CUSTOMER_TYPES.map((customerType) => [
       `${customerType.assetId}_served`,
-      `./public/assets/final/served/customer-${customerType.id.replaceAll("_", "-")}-served.png`,
+      `./public/assets/final/served/customer-${customerAssetSlug(customerType)}-served.png`,
     ]),
   );
 }

@@ -23,6 +23,18 @@ const CUSTOMER_TYPES = [
   "asian_old_woman",
   "asian_young_boy",
   "asian_young_girl",
+  "man_teal",
+  "woman_rose",
+  "old_man_sage",
+  "old_woman_lilac",
+  "young_boy_cobalt",
+  "young_girl_coral",
+  "asian_man_indigo",
+  "asian_woman_mint",
+  "asian_old_man_ochre",
+  "asian_old_woman_berry",
+  "asian_young_boy_lime",
+  "asian_young_girl_violet",
 ];
 
 let serverProcess;
@@ -194,8 +206,8 @@ try {
           served: resources.filter((entry) => entry.name.includes("/served/")).length,
         };
       });
-      expectEqual(resourceCounts.walk, 48, "all walk frames should load");
-      expectEqual(resourceCounts.served, 12, "all served drink pose sprites should load");
+      expectEqual(resourceCounts.walk, 96, "all walk frames should load");
+      expectEqual(resourceCounts.served, 24, "all served drink pose sprites should load");
       await page.context().close();
     });
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = "sidewalk-iced-tea-planb-v7";
+const CACHE_NAME = "sidewalk-iced-tea-planb-v8";
 const CUSTOMER_ASSET_NAMES = [
   "customer-man",
   "customer-woman",
@@ -12,7 +12,22 @@ const CUSTOMER_ASSET_NAMES = [
   "customer-asian-old-woman",
   "customer-asian-young-boy",
   "customer-asian-young-girl",
+  "customer-man-teal",
+  "customer-woman-rose",
+  "customer-old-man-sage",
+  "customer-old-woman-lilac",
+  "customer-young-boy-cobalt",
+  "customer-young-girl-coral",
+  "customer-asian-man-indigo",
+  "customer-asian-woman-mint",
+  "customer-asian-old-man-ochre",
+  "customer-asian-old-woman-berry",
+  "customer-asian-young-boy-lime",
+  "customer-asian-young-girl-violet",
 ];
+const CUSTOMER_BASE_ASSETS = CUSTOMER_ASSET_NAMES.map(
+  (name) => `./public/assets/final/${name}.png`,
+);
 const CUSTOMER_WALK_ASSETS = CUSTOMER_ASSET_NAMES.flatMap((name) =>
   Array.from(
     { length: 4 },
@@ -34,21 +49,10 @@ const APP_SHELL = [
   "./public/assets/final/bg-room.png",
   "./public/assets/final/stall-counter.png",
   "./public/assets/final/table-slot.png",
-  "./public/assets/final/customer-man.png",
-  "./public/assets/final/customer-woman.png",
-  "./public/assets/final/customer-old-man.png",
-  "./public/assets/final/customer-old-woman.png",
-  "./public/assets/final/customer-young-boy.png",
-  "./public/assets/final/customer-young-girl.png",
-  "./public/assets/final/customer-asian-man.png",
-  "./public/assets/final/customer-asian-woman.png",
-  "./public/assets/final/customer-asian-old-man.png",
-  "./public/assets/final/customer-asian-old-woman.png",
-  "./public/assets/final/customer-asian-young-boy.png",
-  "./public/assets/final/customer-asian-young-girl.png",
   "./public/assets/final/icon-coin.png",
   "./public/assets/final/icon-rain.png",
   "./public/assets/final/icon-umbrella.png",
+  ...CUSTOMER_BASE_ASSETS,
   ...CUSTOMER_WALK_ASSETS,
   ...CUSTOMER_SERVED_ASSETS,
 ];
