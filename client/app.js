@@ -88,6 +88,8 @@ const runtime = {
   hiddenStartedAt: null,
   saveStatus: "booting",
   saveInFlight: false,
+  pendingSaveReason: null,
+  saveDrainPromise: null,
   audio: createAudioEngine(),
   floatingTexts: [],
 };
@@ -397,11 +399,31 @@ function idbPut(db, key, value) {
 }
 
 async function persistGameState(reason = "autosave") {
-  if (runtime.saveInFlight) {
-    return;
+  runtime.pendingSaveReason = reason;
+
+  if (!runtime.saveDrainPromise) {
+    runtime.saveDrainPromise = drainPendingSaves();
   }
 
+  return runtime.saveDrainPromise;
+}
+
+async function drainPendingSaves() {
   runtime.saveInFlight = true;
+
+  try {
+    while (runtime.pendingSaveReason) {
+      const reason = runtime.pendingSaveReason;
+      runtime.pendingSaveReason = null;
+      await writeGameState(reason);
+    }
+  } finally {
+    runtime.saveInFlight = false;
+    runtime.saveDrainPromise = null;
+  }
+}
+
+async function writeGameState(reason) {
   gameState.lastSavedAt = Date.now();
 
   try {
@@ -418,8 +440,6 @@ async function persistGameState(reason = "autosave") {
   } catch (error) {
     console.error("Failed to save the game state.", error);
     runtime.saveStatus = "save error";
-  } finally {
-    runtime.saveInFlight = false;
   }
 }
 
@@ -539,6 +559,7 @@ function updateCustomers(deltaSeconds) {
           color: "#ffd5d5",
         });
         showToast(`${customerLabel(customer.type)} left after waiting too long.`);
+        void persistGameState("missed");
       }
       continue;
     }
@@ -719,6 +740,7 @@ function finishService(customer, table) {
       ? `${customerLabel(customer.type)} tipped you for quick service.`
       : `${customerLabel(customer.type)} got served.`;
   showToast(toastMessage);
+  void persistGameState("served");
 }
 
 function handleCanvasPointer(event) {

@@ -24,6 +24,7 @@ Then open the local URL printed by the server.
 cd client
 npm install
 npm run smoke
+npm run flow
 ```
 
 ## Art

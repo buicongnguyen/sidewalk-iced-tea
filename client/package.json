@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "scripts": {
     "start": "node server.js",
+    "flow": "node flow-test.mjs",
     "smoke": "node smoke-test.mjs"
   },
   "devDependencies": {
