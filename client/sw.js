@@ -1,4 +1,4 @@
-const CACHE_NAME = "sidewalk-iced-tea-planb-v2";
+const CACHE_NAME = "sidewalk-iced-tea-planb-v3";
 const APP_SHELL = [
   "./",
   "./index.html",

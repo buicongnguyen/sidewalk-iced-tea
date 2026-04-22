@@ -989,11 +989,8 @@ function drawRoom() {
   const bgImage = runtime.assets.get("bg_room");
   if (bgImage) {
     ctx.drawImage(bgImage, 0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+    return;
   }
-
-  ctx.fillStyle = "rgba(250, 232, 193, 0.18)";
-  ctx.fillRect(96, 252, 144, 56);
-  ctx.fillRect(224, 128, 38, 280);
 
   const counterImage = runtime.assets.get("stall_counter");
   if (counterImage) {
