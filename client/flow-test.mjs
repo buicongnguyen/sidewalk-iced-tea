@@ -46,6 +46,12 @@ try {
       await page.waitForFunction(
         () => window.__planBGame.getSnapshot().saveStatus === "served",
       );
+      const servedSnapshot = await getSnapshot(page);
+      expectEqual(
+        servedSnapshot.customers.some((customer) => customer.phase === "enjoying"),
+        true,
+        "served customer should remain at the table in drink pose state",
+      );
       await page.reload({ waitUntil: "networkidle" });
       await waitForApp(page);
       const snapshot = await getSnapshot(page);
@@ -111,6 +117,49 @@ try {
       const snapshot = await getSnapshot(page);
       expectEqual(snapshot.weatherState, "rain", "rain should stay active");
       expectGreaterThan(snapshot.weatherRemaining, 10, "rain countdown should continue");
+      await page.context().close();
+    });
+
+    await runFlow(results, "top entrance and served pose assets load", async () => {
+      const page = await newPage(browser, makeBaseSave({ spawnTimer: 0 }));
+      await page.goto(serverUrl, { waitUntil: "networkidle" });
+      await waitForApp(page);
+      await page.click("#start-button");
+      await page.waitForFunction(
+        () => window.__planBGame.getSnapshot().customers.some(
+          (customer) => customer.phase === "walking_to_table",
+        ),
+      );
+      const snapshot = await getSnapshot(page);
+      const walkingCustomer = snapshot.customers.find(
+        (customer) => customer.phase === "walking_to_table",
+      );
+      expectLessThan(
+        Math.abs(walkingCustomer.x - 236),
+        2,
+        "entering customer should use the top aisle x position",
+      );
+      expectLessThan(
+        walkingCustomer.y,
+        150,
+        "entering customer should start from the top patio edge",
+      );
+      const waypointYs = walkingCustomer.waypoints.map((point) => Math.round(point.y));
+      expectEqual(
+        waypointYs.includes(116) || Math.round(walkingCustomer.y) === 116,
+        true,
+        "customer should pass through the top entrance inside point",
+      );
+
+      const resourceCounts = await page.evaluate(() => {
+        const resources = performance.getEntriesByType("resource");
+        return {
+          walk: resources.filter((entry) => entry.name.includes("/walk/")).length,
+          served: resources.filter((entry) => entry.name.includes("/served/")).length,
+        };
+      });
+      expectEqual(resourceCounts.walk, 24, "all walk frames should load");
+      expectEqual(resourceCounts.served, 6, "all served drink pose sprites should load");
       await page.context().close();
     });
 

@@ -1,7 +1,7 @@
 {
   "pack": "final",
-  "version": 4,
-  "generatedWith": "Codex imagegen + Game Studio sprite pipeline normalization + procedural walk-frame derivation",
+  "version": 5,
+  "generatedWith": "Codex imagegen + Game Studio sprite pipeline normalization + procedural walk-frame and served-pose derivation",
   "sourcePrompts": [
     "cohesive 2D game asset sheet for a cozy iced tea stall management game",
     "cozy hand-painted pixel-art inspired tea shop interior",
@@ -29,5 +29,13 @@
     "customer_old_woman": "./client/public/assets/final/walk/customer-old-woman-walk-{frame}.png",
     "customer_young_boy": "./client/public/assets/final/walk/customer-young-boy-walk-{frame}.png",
     "customer_young_girl": "./client/public/assets/final/walk/customer-young-girl-walk-{frame}.png"
+  },
+  "servedFrames": {
+    "customer_man": "./client/public/assets/final/served/customer-man-served.png",
+    "customer_woman": "./client/public/assets/final/served/customer-woman-served.png",
+    "customer_old_man": "./client/public/assets/final/served/customer-old-man-served.png",
+    "customer_old_woman": "./client/public/assets/final/served/customer-old-woman-served.png",
+    "customer_young_boy": "./client/public/assets/final/served/customer-young-boy-served.png",
+    "customer_young_girl": "./client/public/assets/final/served/customer-young-girl-served.png"
   }
 }

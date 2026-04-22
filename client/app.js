@@ -20,10 +20,11 @@ const TABLE_ROWS = 2;
 const TABLE_COLUMNS = 4;
 const BOARD_WIDTH = 960;
 const BOARD_HEIGHT = 540;
-const DOOR_OUTSIDE_X = 142;
-const DOOR_INSIDE_X = 220;
-const DOOR_Y = 280;
 const AISLE_X = 236;
+const DOOR_OUTSIDE_X = AISLE_X;
+const DOOR_OUTSIDE_Y = 78;
+const DOOR_INSIDE_X = AISLE_X;
+const DOOR_INSIDE_Y = 116;
 const WALK_FRAME_COUNT = 4;
 
 const CUSTOMER_TYPES = [
@@ -50,6 +51,7 @@ const BASE_ASSET_PATHS = {
 const ASSET_PATHS = {
   ...BASE_ASSET_PATHS,
   ...buildWalkAssetPaths(),
+  ...buildServedAssetPaths(),
 };
 
 const ui = {
@@ -673,7 +675,7 @@ function spawnCustomer() {
     type: customerType.id,
     phase: "walking_to_table",
     x: DOOR_OUTSIDE_X,
-    y: DOOR_Y,
+    y: DOOR_OUTSIDE_Y,
     targetX: freeTable.seatX,
     targetY: freeTable.seatY,
     waypoints: buildEntryWaypoints(freeTable),
@@ -697,7 +699,7 @@ function beginExit(customer, table) {
   const tableLayout = getTableLayout(customer.tableId);
   customer.phase = "walking_out";
   customer.targetX = DOOR_OUTSIDE_X;
-  customer.targetY = DOOR_Y;
+  customer.targetY = DOOR_OUTSIDE_Y;
   customer.waypoints = tableLayout ? buildExitWaypoints(tableLayout) : [];
   customer.serveElapsed = 0;
   customer.enjoyElapsed = 0;
@@ -1157,6 +1159,11 @@ function getCustomerImage(customerType, customer, timestamp) {
     return runtime.assets.get(walkAssetId) ?? runtime.assets.get(customerType.assetId);
   }
 
+  if (customer.phase === "enjoying") {
+    const servedAssetId = `${customerType.assetId}_served`;
+    return runtime.assets.get(servedAssetId) ?? runtime.assets.get(customerType.assetId);
+  }
+
   return runtime.assets.get(customerType.assetId);
 }
 
@@ -1432,7 +1439,8 @@ function parseSaveSource(primaryRaw, backupRaw) {
 
 function buildEntryWaypoints(tableLayout) {
   return [
-    { x: DOOR_INSIDE_X, y: DOOR_Y },
+    { x: DOOR_INSIDE_X, y: DOOR_INSIDE_Y },
+    { x: AISLE_X, y: tableLayout.approachY },
     { x: tableLayout.approachX, y: tableLayout.approachY },
     { x: tableLayout.seatX, y: tableLayout.seatY },
   ];
@@ -1441,24 +1449,25 @@ function buildEntryWaypoints(tableLayout) {
 function buildExitWaypoints(tableLayout) {
   return [
     { x: tableLayout.approachX, y: tableLayout.approachY },
-    { x: DOOR_INSIDE_X, y: DOOR_Y },
-    { x: DOOR_OUTSIDE_X, y: DOOR_Y },
+    { x: AISLE_X, y: tableLayout.approachY },
+    { x: DOOR_INSIDE_X, y: DOOR_INSIDE_Y },
+    { x: DOOR_OUTSIDE_X, y: DOOR_OUTSIDE_Y },
   ];
 }
 
 function normalizeWaypoints(waypoints, tableLayout, phase) {
-  if (Array.isArray(waypoints) && waypoints.length > 0) {
-    return waypoints
-      .filter((point) => point && Number.isFinite(point.x) && Number.isFinite(point.y))
-      .map((point) => ({ x: Number(point.x), y: Number(point.y) }));
-  }
-
   if (phase === "walking_out") {
     return buildExitWaypoints(tableLayout);
   }
 
   if (phase === "walking_to_table") {
     return buildEntryWaypoints(tableLayout);
+  }
+
+  if (Array.isArray(waypoints) && waypoints.length > 0) {
+    return waypoints
+      .filter((point) => point && Number.isFinite(point.x) && Number.isFinite(point.y))
+      .map((point) => ({ x: Number(point.x), y: Number(point.y) }));
   }
 
   return [];
@@ -1472,6 +1481,15 @@ function buildWalkAssetPaths() {
         `./public/assets/final/walk/customer-${customerType.id.replaceAll("_", "-")}-walk-${frameIndex}.png`,
       ]),
     ),
+  );
+}
+
+function buildServedAssetPaths() {
+  return Object.fromEntries(
+    CUSTOMER_TYPES.map((customerType) => [
+      `${customerType.assetId}_served`,
+      `./public/assets/final/served/customer-${customerType.id.replaceAll("_", "-")}-served.png`,
+    ]),
   );
 }
 

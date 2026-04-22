@@ -1,4 +1,4 @@
-const CACHE_NAME = "sidewalk-iced-tea-planb-v4";
+const CACHE_NAME = "sidewalk-iced-tea-planb-v5";
 const CUSTOMER_ASSET_NAMES = [
   "customer-man",
   "customer-woman",
@@ -12,6 +12,9 @@ const CUSTOMER_WALK_ASSETS = CUSTOMER_ASSET_NAMES.flatMap((name) =>
     { length: 4 },
     (_, frameIndex) => `./public/assets/final/walk/${name}-walk-${frameIndex}.png`,
   ),
+);
+const CUSTOMER_SERVED_ASSETS = CUSTOMER_ASSET_NAMES.map(
+  (name) => `./public/assets/final/served/${name}-served.png`,
 );
 const APP_SHELL = [
   "./",
@@ -35,6 +38,7 @@ const APP_SHELL = [
   "./public/assets/final/icon-rain.png",
   "./public/assets/final/icon-umbrella.png",
   ...CUSTOMER_WALK_ASSETS,
+  ...CUSTOMER_SERVED_ASSETS,
 ];
 
 self.addEventListener("install", (event) => {
