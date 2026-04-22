@@ -296,6 +296,7 @@ function normalizeCustomer(customer) {
     id: asNumber(customer.id, 0),
     type: customerType.id,
     phase: customer.phase ?? "waiting",
+    rainUmbrella: Boolean(customer.rainUmbrella),
     x: asNumber(customer.x, tableLayout.seatX),
     y: asNumber(customer.y, tableLayout.seatY),
     targetX: asNumber(customer.targetX, tableLayout.seatX),
@@ -674,6 +675,7 @@ function spawnCustomer() {
     id: customerId,
     type: customerType.id,
     phase: "walking_to_table",
+    rainUmbrella: false,
     x: DOOR_OUTSIDE_X,
     y: DOOR_OUTSIDE_Y,
     targetX: freeTable.seatX,
@@ -698,6 +700,7 @@ function spawnCustomer() {
 function beginExit(customer, table) {
   const tableLayout = getTableLayout(customer.tableId);
   customer.phase = "walking_out";
+  customer.rainUmbrella = false;
   customer.targetX = DOOR_OUTSIDE_X;
   customer.targetY = DOOR_OUTSIDE_Y;
   customer.waypoints = tableLayout ? buildExitWaypoints(tableLayout) : [];
@@ -778,12 +781,20 @@ function handleCanvasPointer(event) {
   }
 
   const table = getTableState(tableLayout.id);
-  if (!table || table.status !== "waiting") {
-    showToast("That table is not ready to serve.");
+  if (!table) {
     return;
   }
 
   const customer = gameState.customers.find((entry) => entry.id === table.customerId);
+  if (tryPlaceRainUmbrella(tableLayout, customer)) {
+    return;
+  }
+
+  if (table.status !== "waiting") {
+    showToast("That table is not ready to serve.");
+    return;
+  }
+
   if (!customer) {
     return;
   }
@@ -793,6 +804,27 @@ function handleCanvasPointer(event) {
   table.status = "serving";
   table.serviceElapsed = 0;
   runtime.audio.beep("tap");
+}
+
+function tryPlaceRainUmbrella(tableLayout, customer) {
+  if (
+    gameState.weatherState !== "rain" ||
+    !customer ||
+    !["being_served", "enjoying"].includes(customer.phase)
+  ) {
+    return false;
+  }
+
+  if (customer.rainUmbrella) {
+    showToast("That table already has rain cover.");
+    return true;
+  }
+
+  customer.rainUmbrella = true;
+  runtime.audio.beep("upgrade");
+  showToast(`${customerLabel(customer.type)} is covered from the rain.`);
+  void persistGameState("umbrella");
+  return true;
 }
 
 function getCanvasPoint(event) {
@@ -1148,8 +1180,69 @@ function drawCustomers(timestamp) {
       ctx.textAlign = "center";
       ctx.fillText(customerLabel(customer.type), customer.x, drawY - 4);
     }
+
+    if (shouldDrawRainUmbrella(customer)) {
+      drawCustomerUmbrella(customer, drawY, timestamp);
+    }
     ctx.restore();
   }
+}
+
+function shouldDrawRainUmbrella(customer) {
+  return (
+    customer.rainUmbrella &&
+    gameState.weatherState === "rain" &&
+    ["waiting", "being_served", "enjoying"].includes(customer.phase)
+  );
+}
+
+function drawCustomerUmbrella(customer, drawY, timestamp) {
+  const pulse = Math.sin((timestamp / 220) + customer.id) * 1.2;
+  const centerX = Math.round(customer.x);
+  const canopyY = Math.round(drawY - 4 + pulse);
+  const left = centerX - 38;
+  const right = centerX + 38;
+  const bottom = canopyY + 20;
+
+  ctx.save();
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+
+  ctx.fillStyle = "rgba(20, 33, 30, 0.28)";
+  ctx.beginPath();
+  ctx.ellipse(centerX + 4, bottom + 5, 34, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(left, bottom);
+  ctx.quadraticCurveTo(centerX - 28, canopyY - 18, centerX, canopyY - 16);
+  ctx.quadraticCurveTo(centerX + 28, canopyY - 18, right, bottom);
+  ctx.quadraticCurveTo(centerX + 19, bottom - 7, centerX, bottom);
+  ctx.quadraticCurveTo(centerX - 19, bottom - 7, left, bottom);
+  ctx.closePath();
+  ctx.fillStyle = "#2a8a76";
+  ctx.fill();
+  ctx.strokeStyle = "#153f39";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(218, 255, 246, 0.58)";
+  ctx.lineWidth = 2;
+  for (const ribX of [centerX - 23, centerX, centerX + 23]) {
+    ctx.beginPath();
+    ctx.moveTo(centerX, canopyY - 13);
+    ctx.lineTo(ribX, bottom - 2);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = "#3b2b1d";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(centerX, bottom - 1);
+  ctx.lineTo(centerX, drawY + 38);
+  ctx.stroke();
+
+  ctx.restore();
 }
 
 function getCustomerImage(customerType, customer, timestamp) {

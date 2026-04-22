@@ -120,6 +120,36 @@ try {
       await page.context().close();
     });
 
+    await runFlow(results, "rain extra click adds table umbrella", async () => {
+      const rainySave = makeWaitingSave({ waitElapsed: 1 });
+      rainySave.weatherState = "rain";
+      rainySave.weatherRemaining = 12;
+      const page = await newPage(browser, rainySave);
+      await page.goto(serverUrl, { waitUntil: "networkidle" });
+      await waitForApp(page);
+      await page.click("#start-button");
+      await clickTable(page, "table-1-0");
+      await page.waitForFunction(
+        () => window.__planBGame.getSnapshot().customers.some(
+          (customer) => customer.phase === "being_served",
+        ),
+      );
+      await clickTable(page, "table-1-0");
+      await page.waitForFunction(
+        () => window.__planBGame.getSnapshot().customers.some(
+          (customer) => customer.rainUmbrella === true,
+        ),
+      );
+      await page.waitForFunction(
+        () => window.__planBGame.getSnapshot().saveStatus === "umbrella",
+      );
+      await page.reload({ waitUntil: "networkidle" });
+      await waitForApp(page);
+      const snapshot = await getSnapshot(page);
+      expectEqual(snapshot.customers[0].rainUmbrella, true, "umbrella should persist on the covered customer");
+      await page.context().close();
+    });
+
     await runFlow(results, "top entrance and served pose assets load", async () => {
       const page = await newPage(browser, makeBaseSave({ spawnTimer: 0 }));
       await page.goto(serverUrl, { waitUntil: "networkidle" });
@@ -415,6 +445,7 @@ function makeCustomer({ id, type, layout, waitElapsed }) {
     id,
     type,
     phase: "waiting",
+    rainUmbrella: false,
     x: layout.seatX,
     y: layout.seatY,
     targetX: layout.seatX,
