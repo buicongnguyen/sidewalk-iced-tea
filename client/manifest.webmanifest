@@ -1,0 +1,23 @@
+{
+  "name": "Sidewalk Iced Tea Plan B",
+  "short_name": "Iced Tea",
+  "description": "A browser-first tea shop prototype with local save and offline shell.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f2d7a5",
+  "theme_color": "#d16f49",
+  "icons": [
+    {
+      "src": "./public/icons/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./public/icons/app-icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

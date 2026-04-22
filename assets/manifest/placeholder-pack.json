@@ -1,0 +1,18 @@
+{
+  "pack": "placeholder",
+  "version": 1,
+  "assets": {
+    "bg_room": "./client/public/assets/placeholder/bg-room.svg",
+    "stall_counter": "./client/public/assets/placeholder/stall-counter.svg",
+    "table_slot": "./client/public/assets/placeholder/table-slot.svg",
+    "icon_coin": "./client/public/assets/placeholder/icon-coin.svg",
+    "icon_rain": "./client/public/assets/placeholder/icon-rain.svg",
+    "icon_umbrella": "./client/public/assets/placeholder/icon-umbrella.svg",
+    "customer_man": "./client/public/assets/placeholder/customer-man.svg",
+    "customer_woman": "./client/public/assets/placeholder/customer-woman.svg",
+    "customer_old_man": "./client/public/assets/placeholder/customer-old-man.svg",
+    "customer_old_woman": "./client/public/assets/placeholder/customer-old-woman.svg",
+    "customer_young_boy": "./client/public/assets/placeholder/customer-young-boy.svg",
+    "customer_young_girl": "./client/public/assets/placeholder/customer-young-girl.svg"
+  }
+}

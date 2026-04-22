@@ -1,0 +1,18 @@
+{
+  "pack": "final",
+  "version": 1,
+  "assets": {
+    "bg_room": "./client/public/assets/final/bg-room.png",
+    "stall_counter": "./client/public/assets/final/stall-counter.png",
+    "table_slot": "./client/public/assets/final/table-slot.png",
+    "icon_coin": "./client/public/assets/final/icon-coin.png",
+    "icon_rain": "./client/public/assets/final/icon-rain.png",
+    "icon_umbrella": "./client/public/assets/final/icon-umbrella.png",
+    "customer_man": "./client/public/assets/final/customer-man.png",
+    "customer_woman": "./client/public/assets/final/customer-woman.png",
+    "customer_old_man": "./client/public/assets/final/customer-old-man.png",
+    "customer_old_woman": "./client/public/assets/final/customer-old-woman.png",
+    "customer_young_boy": "./client/public/assets/final/customer-young-boy.png",
+    "customer_young_girl": "./client/public/assets/final/customer-young-girl.png"
+  }
+}
