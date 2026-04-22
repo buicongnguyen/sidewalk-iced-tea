@@ -35,15 +35,15 @@ const CUSTOMER_TYPES = [
 ];
 
 const ASSET_PATHS = {
-  bg_room: "./public/assets/placeholder/bg-room.svg",
-  stall_counter: "./public/assets/placeholder/stall-counter.svg",
-  table_slot: "./public/assets/placeholder/table-slot.svg",
-  customer_man: "./public/assets/placeholder/customer-man.svg",
-  customer_woman: "./public/assets/placeholder/customer-woman.svg",
-  customer_old_man: "./public/assets/placeholder/customer-old-man.svg",
-  customer_old_woman: "./public/assets/placeholder/customer-old-woman.svg",
-  customer_young_boy: "./public/assets/placeholder/customer-young-boy.svg",
-  customer_young_girl: "./public/assets/placeholder/customer-young-girl.svg",
+  bg_room: "./public/assets/final/bg-room.png",
+  stall_counter: "./public/assets/final/stall-counter.png",
+  table_slot: "./public/assets/final/table-slot.png",
+  customer_man: "./public/assets/final/customer-man.png",
+  customer_woman: "./public/assets/final/customer-woman.png",
+  customer_old_man: "./public/assets/final/customer-old-man.png",
+  customer_old_woman: "./public/assets/final/customer-old-woman.png",
+  customer_young_boy: "./public/assets/final/customer-young-boy.png",
+  customer_young_girl: "./public/assets/final/customer-young-girl.png",
 };
 
 const ui = {
@@ -969,29 +969,14 @@ function drawRoom() {
     ctx.drawImage(bgImage, 0, 0, BOARD_WIDTH, BOARD_HEIGHT);
   }
 
-  ctx.fillStyle = "#4c3020";
-  ctx.fillRect(42, 90, 44, 190);
-  ctx.fillStyle = "#26140c";
-  ctx.fillRect(54, 116, 26, 138);
-  ctx.fillStyle = "#f8d36b";
-  ctx.fillRect(58, 182, 8, 8);
-
   ctx.fillStyle = "rgba(250, 232, 193, 0.18)";
   ctx.fillRect(96, 252, 144, 56);
   ctx.fillRect(224, 128, 38, 280);
 
-  ctx.fillStyle = "#ffe9b6";
-  ctx.font = '700 22px "Trebuchet MS", sans-serif';
-  ctx.fillText("Door", 34, 308);
-
   const counterImage = runtime.assets.get("stall_counter");
   if (counterImage) {
-    ctx.drawImage(counterImage, 110, 72, 184, 110);
+    ctx.drawImage(counterImage, 96, 66, 232, 145);
   }
-
-  ctx.fillStyle = "#fff7e1";
-  ctx.font = '700 24px "Trebuchet MS", sans-serif';
-  ctx.fillText("Tea Counter", 112, 205);
 }
 
 function drawTables() {

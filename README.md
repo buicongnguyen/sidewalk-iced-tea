@@ -25,3 +25,7 @@ cd client
 npm install
 npm run smoke
 ```
+
+## Art
+
+The playable build uses the generated PNG asset pack in `client/public/assets/final/`.

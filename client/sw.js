@@ -1,4 +1,4 @@
-const CACHE_NAME = "sidewalk-iced-tea-planb-v1";
+const CACHE_NAME = "sidewalk-iced-tea-planb-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -8,18 +8,18 @@ const APP_SHELL = [
   "./offline.html",
   "./public/icons/app-icon.svg",
   "./public/icons/app-icon-maskable.svg",
-  "./public/assets/placeholder/bg-room.svg",
-  "./public/assets/placeholder/stall-counter.svg",
-  "./public/assets/placeholder/table-slot.svg",
-  "./public/assets/placeholder/customer-man.svg",
-  "./public/assets/placeholder/customer-woman.svg",
-  "./public/assets/placeholder/customer-old-man.svg",
-  "./public/assets/placeholder/customer-old-woman.svg",
-  "./public/assets/placeholder/customer-young-boy.svg",
-  "./public/assets/placeholder/customer-young-girl.svg",
-  "./public/assets/placeholder/icon-coin.svg",
-  "./public/assets/placeholder/icon-rain.svg",
-  "./public/assets/placeholder/icon-umbrella.svg"
+  "./public/assets/final/bg-room.png",
+  "./public/assets/final/stall-counter.png",
+  "./public/assets/final/table-slot.png",
+  "./public/assets/final/customer-man.png",
+  "./public/assets/final/customer-woman.png",
+  "./public/assets/final/customer-old-man.png",
+  "./public/assets/final/customer-old-woman.png",
+  "./public/assets/final/customer-young-boy.png",
+  "./public/assets/final/customer-young-girl.png",
+  "./public/assets/final/icon-coin.png",
+  "./public/assets/final/icon-rain.png",
+  "./public/assets/final/icon-umbrella.png"
 ];
 
 self.addEventListener("install", (event) => {

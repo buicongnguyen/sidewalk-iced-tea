@@ -1,6 +1,11 @@
 {
   "pack": "final",
-  "version": 1,
+  "version": 2,
+  "generatedWith": "Codex imagegen + Game Studio sprite pipeline normalization",
+  "sourcePrompts": [
+    "cohesive 2D game asset sheet for a cozy iced tea stall management game",
+    "cozy hand-painted pixel-art inspired tea shop interior"
+  ],
   "assets": {
     "bg_room": "./client/public/assets/final/bg-room.png",
     "stall_counter": "./client/public/assets/final/stall-counter.png",
