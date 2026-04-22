@@ -20,10 +20,11 @@ const TABLE_ROWS = 2;
 const TABLE_COLUMNS = 4;
 const BOARD_WIDTH = 960;
 const BOARD_HEIGHT = 540;
-const DOOR_OUTSIDE_X = -24;
-const DOOR_INSIDE_X = 104;
+const DOOR_OUTSIDE_X = 142;
+const DOOR_INSIDE_X = 220;
 const DOOR_Y = 280;
 const AISLE_X = 236;
+const WALK_FRAME_COUNT = 4;
 
 const CUSTOMER_TYPES = [
   { id: "man", assetId: "customer_man", label: "Man" },
@@ -34,7 +35,7 @@ const CUSTOMER_TYPES = [
   { id: "young_girl", assetId: "customer_young_girl", label: "Young girl" },
 ];
 
-const ASSET_PATHS = {
+const BASE_ASSET_PATHS = {
   bg_room: "./public/assets/final/bg-room.png",
   stall_counter: "./public/assets/final/stall-counter.png",
   table_slot: "./public/assets/final/table-slot.png",
@@ -44,6 +45,11 @@ const ASSET_PATHS = {
   customer_old_woman: "./public/assets/final/customer-old-woman.png",
   customer_young_boy: "./public/assets/final/customer-young-boy.png",
   customer_young_girl: "./public/assets/final/customer-young-girl.png",
+};
+
+const ASSET_PATHS = {
+  ...BASE_ASSET_PATHS,
+  ...buildWalkAssetPaths(),
 };
 
 const ui = {
@@ -1110,9 +1116,12 @@ function drawCustomers(timestamp) {
   const sorted = [...gameState.customers].sort((left, right) => left.y - right.y);
 
   for (const customer of sorted) {
-    const assetKey = CUSTOMER_TYPES.find((entry) => entry.id === customer.type)?.assetId;
-    const image = assetKey ? runtime.assets.get(assetKey) : null;
-    const bob = Math.sin((timestamp / 180) + customer.id) * 1.5;
+    const customerType = CUSTOMER_TYPES.find((entry) => entry.id === customer.type);
+    const image = customerType ? getCustomerImage(customerType, customer, timestamp) : null;
+    const isWalking = customer.phase === "walking_to_table" || customer.phase === "walking_out";
+    const bob = isWalking
+      ? Math.sin((timestamp / 95) + customer.id) * 2.2
+      : Math.sin((timestamp / 180) + customer.id) * 1.2;
     const drawX = Math.round(customer.x - 28);
     const drawY = Math.round(customer.y - 72 + bob);
 
@@ -1141,6 +1150,16 @@ function drawCustomers(timestamp) {
   }
 }
 
+function getCustomerImage(customerType, customer, timestamp) {
+  if (customer.phase === "walking_to_table" || customer.phase === "walking_out") {
+    const frameIndex = Math.floor((timestamp / 130) + customer.id) % WALK_FRAME_COUNT;
+    const walkAssetId = `${customerType.assetId}_walk_${frameIndex}`;
+    return runtime.assets.get(walkAssetId) ?? runtime.assets.get(customerType.assetId);
+  }
+
+  return runtime.assets.get(customerType.assetId);
+}
+
 function drawFloatingTexts() {
   for (const item of runtime.floatingTexts) {
     ctx.save();
@@ -1154,21 +1173,42 @@ function drawFloatingTexts() {
 }
 
 function drawRainOverlay(timestamp) {
+  const seconds = timestamp / 1000;
+
   ctx.save();
-  ctx.fillStyle = "rgba(55, 102, 153, 0.10)";
+  ctx.fillStyle = "rgba(32, 58, 90, 0.22)";
   ctx.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
 
-  ctx.strokeStyle = "rgba(222, 244, 255, 0.44)";
-  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(218, 244, 255, 0.62)";
 
-  for (let index = 0; index < 44; index += 1) {
-    const x = (index * 34 + (timestamp / 3)) % (BOARD_WIDTH + 40);
-    const y = ((index * 21) + (timestamp / 7)) % (BOARD_HEIGHT + 60);
+  for (let index = 0; index < 74; index += 1) {
+    const lane = index % 13;
+    const row = Math.floor(index / 13);
+    const x = ((lane * 86) + (row * 39) + (seconds * 38)) % (BOARD_WIDTH + 96) - 48;
+    const y = ((row * 92) + (lane * 31) + (seconds * 330)) % (BOARD_HEIGHT + 96) - 48;
+    const length = 18 + ((index % 5) * 3);
+
+    ctx.globalAlpha = 0.45 + ((index % 4) * 0.11);
+    ctx.lineWidth = index % 3 === 0 ? 2.6 : 1.7;
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.lineTo(x - 8, y + 16);
+    ctx.lineTo(x - 8, y + length);
     ctx.stroke();
   }
+
+  ctx.globalAlpha = 0.32;
+  ctx.strokeStyle = "rgba(202, 236, 255, 0.52)";
+  ctx.lineWidth = 1.4;
+  for (let index = 0; index < 22; index += 1) {
+    const x = ((index * 47) + (seconds * 72)) % BOARD_WIDTH;
+    const y = 368 + ((index * 19) % 126);
+    const pulse = 2 + ((seconds * 8 + index) % 5);
+    ctx.beginPath();
+    ctx.ellipse(x, y, pulse * 2.2, pulse * 0.6, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
   ctx.restore();
 }
 
@@ -1422,6 +1462,17 @@ function normalizeWaypoints(waypoints, tableLayout, phase) {
   }
 
   return [];
+}
+
+function buildWalkAssetPaths() {
+  return Object.fromEntries(
+    CUSTOMER_TYPES.flatMap((customerType) =>
+      Array.from({ length: WALK_FRAME_COUNT }, (_, frameIndex) => [
+        `${customerType.assetId}_walk_${frameIndex}`,
+        `./public/assets/final/walk/customer-${customerType.id.replaceAll("_", "-")}-walk-${frameIndex}.png`,
+      ]),
+    ),
+  );
 }
 
 function spawnFloatingText({ text, x, y, color }) {

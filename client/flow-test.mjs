@@ -99,6 +99,21 @@ try {
       await page.context().close();
     });
 
+    await runFlow(results, "rain state stays playable", async () => {
+      const rainySave = makeWaitingSave({ waitElapsed: 1 });
+      rainySave.weatherState = "rain";
+      rainySave.weatherRemaining = 12;
+      const page = await newPage(browser, rainySave);
+      await page.goto(serverUrl, { waitUntil: "networkidle" });
+      await waitForApp(page);
+      await page.click("#start-button");
+      await page.waitForTimeout(700);
+      const snapshot = await getSnapshot(page);
+      expectEqual(snapshot.weatherState, "rain", "rain should stay active");
+      expectGreaterThan(snapshot.weatherRemaining, 10, "rain countdown should continue");
+      await page.context().close();
+    });
+
     await runFlow(results, "upgrades and reset persist", async () => {
       const page = await newPage(browser, makeBaseSave({ coins: 30, score: 30 }));
       await page.goto(serverUrl, { waitUntil: "networkidle" });
