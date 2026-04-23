@@ -22,6 +22,7 @@ const CONTENT_TYPES = {
 const server = http.createServer((request, response) => {
   const requestUrl = new URL(request.url || "/", `http://${request.headers.host}`);
   let requestedPath = decodeURIComponent(requestUrl.pathname);
+  const acceptsHtml = (request.headers.accept || "").includes("text/html");
 
   if (requestedPath === "/") {
     requestedPath = "/index.html";
@@ -41,6 +42,17 @@ const server = http.createServer((request, response) => {
 
     fs.readFile(finalPath, (readError, file) => {
       if (readError) {
+        if (!shouldServeAppShell(requestedPath, acceptsHtml)) {
+          const statusCode =
+            readError.code === "ENOENT" || readError.code === "ENOTDIR" ? 404 : 500;
+          response.writeHead(statusCode, {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-cache",
+          });
+          response.end(statusCode === 404 ? "Not found" : "Server error");
+          return;
+        }
+
         const fallbackPath = path.join(ROOT, "index.html");
         fs.readFile(fallbackPath, (fallbackError, fallbackFile) => {
           if (fallbackError) {
@@ -92,4 +104,12 @@ function formatHostForUrl(host) {
   }
 
   return host;
+}
+
+function shouldServeAppShell(requestedPath, acceptsHtml) {
+  if (!acceptsHtml) {
+    return false;
+  }
+
+  return path.extname(requestedPath) === "";
 }
