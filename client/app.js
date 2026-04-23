@@ -121,6 +121,7 @@ const runtime = {
   mode: "title",
   assets: new Map(),
   db: null,
+  paletteCache: new WeakMap(),
   storageMode: "indexeddb",
   lastFrame: 0,
   accumulator: 0,
@@ -1406,6 +1407,9 @@ function drawCustomers(timestamp) {
 
     if (image) {
       ctx.drawImage(image, drawX, drawY, 56, 72);
+      if (customer.phase !== "enjoying") {
+        drawCuplessHandOverlay(image, drawX, drawY);
+      }
     } else {
       ctx.fillStyle = "#f5cab0";
       ctx.fillRect(drawX + 16, drawY + 12, 24, 18);
@@ -1499,6 +1503,156 @@ function getCustomerImage(customerType, customer, timestamp) {
   }
 
   return runtime.assets.get(customerType.assetId);
+}
+
+function drawCuplessHandOverlay(image, drawX, drawY) {
+  const palette = getSpritePalette(image);
+  const outline = shadeHexColor(palette.outerwear, -0.22);
+  const cuff = shadeHexColor(palette.outerwear, -0.08);
+
+  ctx.save();
+  ctx.translate(drawX, drawY);
+
+  ctx.fillStyle = palette.innerwear;
+  ctx.beginPath();
+  ctx.moveTo(13, 21);
+  ctx.lineTo(22, 18);
+  ctx.lineTo(26, 24);
+  ctx.lineTo(25, 38);
+  ctx.lineTo(18, 48);
+  ctx.lineTo(11, 43);
+  ctx.lineTo(12, 30);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = palette.outerwear;
+  ctx.beginPath();
+  ctx.moveTo(9, 22);
+  ctx.lineTo(18, 18);
+  ctx.lineTo(24, 22);
+  ctx.lineTo(26, 31);
+  ctx.lineTo(24, 42);
+  ctx.lineTo(17, 46);
+  ctx.lineTo(8, 41);
+  ctx.lineTo(7, 30);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 1.25;
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(10, 23);
+  ctx.lineTo(17, 20);
+  ctx.lineTo(23, 23);
+  ctx.lineTo(24, 31);
+  ctx.lineTo(22, 40);
+  ctx.lineTo(16, 44);
+  ctx.lineTo(9, 40);
+  ctx.lineTo(8, 30);
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.fillStyle = cuff;
+  ctx.fillRect(8, 34, 8, 7);
+
+  ctx.fillStyle = palette.skin;
+  ctx.beginPath();
+  ctx.ellipse(13.5, 37.5, 5.7, 6.3, -0.15, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = shadeHexColor(palette.skin, -0.18);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(16, 34);
+  ctx.lineTo(17.5, 40);
+  ctx.lineTo(13.5, 44);
+  ctx.lineTo(9.5, 41);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function getSpritePalette(image) {
+  const cachedPalette = runtime.paletteCache.get(image);
+  if (cachedPalette) {
+    return cachedPalette;
+  }
+
+  const sampleCanvas = document.createElement("canvas");
+  sampleCanvas.width = image.naturalWidth || image.width;
+  sampleCanvas.height = image.naturalHeight || image.height;
+  const sampleContext = sampleCanvas.getContext("2d", { willReadFrequently: true });
+  sampleContext.drawImage(image, 0, 0);
+
+  const palette = {
+    outerwear: sampleRegionColor(sampleContext, 152, 120, 20, 26, "#8c775e"),
+    innerwear: sampleRegionColor(sampleContext, 114, 116, 22, 28, "#f1e1c7"),
+    skin: sampleRegionColor(sampleContext, 58, 122, 18, 22, "#f0c6a9"),
+  };
+
+  runtime.paletteCache.set(image, palette);
+  return palette;
+}
+
+function sampleRegionColor(context, x, y, width, height, fallbackHex) {
+  const safeX = Math.max(0, Math.floor(x));
+  const safeY = Math.max(0, Math.floor(y));
+  const safeWidth = Math.max(1, Math.floor(width));
+  const safeHeight = Math.max(1, Math.floor(height));
+  const imageData = context.getImageData(safeX, safeY, safeWidth, safeHeight).data;
+
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  let count = 0;
+
+  for (let index = 0; index < imageData.length; index += 4) {
+    const alpha = imageData[index + 3];
+    if (alpha < 24) {
+      continue;
+    }
+
+    red += imageData[index];
+    green += imageData[index + 1];
+    blue += imageData[index + 2];
+    count += 1;
+  }
+
+  if (count === 0) {
+    return fallbackHex;
+  }
+
+  return rgbToHex(
+    Math.round(red / count),
+    Math.round(green / count),
+    Math.round(blue / count),
+  );
+}
+
+function shadeHexColor(hexColor, amount) {
+  const [red, green, blue] = hexToRgb(hexColor);
+  const applyShade = (value) =>
+    Math.max(0, Math.min(255, Math.round(
+      amount >= 0
+        ? value + ((255 - value) * amount)
+        : value * (1 + amount),
+    )));
+
+  return rgbToHex(applyShade(red), applyShade(green), applyShade(blue));
+}
+
+function hexToRgb(hexColor) {
+  const normalized = hexColor.replace("#", "");
+  return [
+    Number.parseInt(normalized.slice(0, 2), 16),
+    Number.parseInt(normalized.slice(2, 4), 16),
+    Number.parseInt(normalized.slice(4, 6), 16),
+  ];
+}
+
+function rgbToHex(red, green, blue) {
+  return `#${[red, green, blue].map((value) => value.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function drawFloatingTexts() {
