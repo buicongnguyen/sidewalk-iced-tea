@@ -52,6 +52,18 @@ const CUSTOMER_TYPES = [
   { id: "asian_old_woman_berry", assetId: "customer_asian_old_woman_berry", label: "Berry elder" },
   { id: "asian_young_boy_lime", assetId: "customer_asian_young_boy_lime", label: "Lime boy" },
   { id: "asian_young_girl_violet", assetId: "customer_asian_young_girl_violet", label: "Violet girl" },
+  { id: "man_hippie", assetId: "customer_man_hippie", label: "Hippie man" },
+  { id: "woman_hippie", assetId: "customer_woman_hippie", label: "Hippie woman" },
+  { id: "young_girl_hippie", assetId: "customer_young_girl_hippie", label: "Hippie girl" },
+  { id: "asian_young_boy_hippie", assetId: "customer_asian_young_boy_hippie", label: "Hippie boy" },
+  { id: "man_helmet_black", assetId: "customer_man_helmet_black", label: "Black helmet man" },
+  { id: "woman_helmet_white", assetId: "customer_woman_helmet_white", label: "White helmet woman" },
+  { id: "young_boy_helmet_red", assetId: "customer_young_boy_helmet_red", label: "Red helmet boy" },
+  { id: "asian_woman_helmet_blue", assetId: "customer_asian_woman_helmet_blue", label: "Blue helmet woman" },
+  { id: "old_man_mask_black", assetId: "customer_old_man_mask_black", label: "Black mask elder" },
+  { id: "old_woman_mask_white", assetId: "customer_old_woman_mask_white", label: "White mask elder" },
+  { id: "asian_young_boy_mask_green", assetId: "customer_asian_young_boy_mask_green", label: "Green mask boy" },
+  { id: "asian_young_girl_mask_pink", assetId: "customer_asian_young_girl_mask_pink", label: "Pink mask girl" },
 ];
 
 const BASE_ASSET_PATHS = {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "sidewalk-iced-tea-planb-v8";
+const CACHE_NAME = "sidewalk-iced-tea-planb-v9";
 const CUSTOMER_ASSET_NAMES = [
   "customer-man",
   "customer-woman",
@@ -24,6 +24,18 @@ const CUSTOMER_ASSET_NAMES = [
   "customer-asian-old-woman-berry",
   "customer-asian-young-boy-lime",
   "customer-asian-young-girl-violet",
+  "customer-man-hippie",
+  "customer-woman-hippie",
+  "customer-young-girl-hippie",
+  "customer-asian-young-boy-hippie",
+  "customer-man-helmet-black",
+  "customer-woman-helmet-white",
+  "customer-young-boy-helmet-red",
+  "customer-asian-woman-helmet-blue",
+  "customer-old-man-mask-black",
+  "customer-old-woman-mask-white",
+  "customer-asian-young-boy-mask-green",
+  "customer-asian-young-girl-mask-pink",
 ];
 const CUSTOMER_BASE_ASSETS = CUSTOMER_ASSET_NAMES.map(
   (name) => `./public/assets/final/${name}.png`,

@@ -1,7 +1,7 @@
 {
   "pack": "final",
-  "version": 7,
-  "generatedWith": "Codex imagegen + Game Studio sprite pipeline normalization + procedural walk-frame, served-pose, Asian customer, and coordinated palette variant derivation",
+  "version": 8,
+  "generatedWith": "Codex imagegen + Game Studio sprite pipeline normalization + procedural walk-frame, served-pose, Asian customer, coordinated palette, and accessory variant derivation",
   "sourcePrompts": [
     "cohesive 2D game asset sheet for a cozy iced tea stall management game",
     "cozy hand-painted pixel-art inspired tea shop interior",
@@ -37,7 +37,19 @@
     "customer_asian_old_man_ochre": "./client/public/assets/final/customer-asian-old-man-ochre.png",
     "customer_asian_old_woman_berry": "./client/public/assets/final/customer-asian-old-woman-berry.png",
     "customer_asian_young_boy_lime": "./client/public/assets/final/customer-asian-young-boy-lime.png",
-    "customer_asian_young_girl_violet": "./client/public/assets/final/customer-asian-young-girl-violet.png"
+    "customer_asian_young_girl_violet": "./client/public/assets/final/customer-asian-young-girl-violet.png",
+    "customer_man_hippie": "./client/public/assets/final/customer-man-hippie.png",
+    "customer_woman_hippie": "./client/public/assets/final/customer-woman-hippie.png",
+    "customer_young_girl_hippie": "./client/public/assets/final/customer-young-girl-hippie.png",
+    "customer_asian_young_boy_hippie": "./client/public/assets/final/customer-asian-young-boy-hippie.png",
+    "customer_man_helmet_black": "./client/public/assets/final/customer-man-helmet-black.png",
+    "customer_woman_helmet_white": "./client/public/assets/final/customer-woman-helmet-white.png",
+    "customer_young_boy_helmet_red": "./client/public/assets/final/customer-young-boy-helmet-red.png",
+    "customer_asian_woman_helmet_blue": "./client/public/assets/final/customer-asian-woman-helmet-blue.png",
+    "customer_old_man_mask_black": "./client/public/assets/final/customer-old-man-mask-black.png",
+    "customer_old_woman_mask_white": "./client/public/assets/final/customer-old-woman-mask-white.png",
+    "customer_asian_young_boy_mask_green": "./client/public/assets/final/customer-asian-young-boy-mask-green.png",
+    "customer_asian_young_girl_mask_pink": "./client/public/assets/final/customer-asian-young-girl-mask-pink.png"
   },
   "walkFrames": {
     "frameCount": 4,
@@ -64,7 +76,19 @@
     "customer_asian_old_man_ochre": "./client/public/assets/final/walk/customer-asian-old-man-ochre-walk-{frame}.png",
     "customer_asian_old_woman_berry": "./client/public/assets/final/walk/customer-asian-old-woman-berry-walk-{frame}.png",
     "customer_asian_young_boy_lime": "./client/public/assets/final/walk/customer-asian-young-boy-lime-walk-{frame}.png",
-    "customer_asian_young_girl_violet": "./client/public/assets/final/walk/customer-asian-young-girl-violet-walk-{frame}.png"
+    "customer_asian_young_girl_violet": "./client/public/assets/final/walk/customer-asian-young-girl-violet-walk-{frame}.png",
+    "customer_man_hippie": "./client/public/assets/final/walk/customer-man-hippie-walk-{frame}.png",
+    "customer_woman_hippie": "./client/public/assets/final/walk/customer-woman-hippie-walk-{frame}.png",
+    "customer_young_girl_hippie": "./client/public/assets/final/walk/customer-young-girl-hippie-walk-{frame}.png",
+    "customer_asian_young_boy_hippie": "./client/public/assets/final/walk/customer-asian-young-boy-hippie-walk-{frame}.png",
+    "customer_man_helmet_black": "./client/public/assets/final/walk/customer-man-helmet-black-walk-{frame}.png",
+    "customer_woman_helmet_white": "./client/public/assets/final/walk/customer-woman-helmet-white-walk-{frame}.png",
+    "customer_young_boy_helmet_red": "./client/public/assets/final/walk/customer-young-boy-helmet-red-walk-{frame}.png",
+    "customer_asian_woman_helmet_blue": "./client/public/assets/final/walk/customer-asian-woman-helmet-blue-walk-{frame}.png",
+    "customer_old_man_mask_black": "./client/public/assets/final/walk/customer-old-man-mask-black-walk-{frame}.png",
+    "customer_old_woman_mask_white": "./client/public/assets/final/walk/customer-old-woman-mask-white-walk-{frame}.png",
+    "customer_asian_young_boy_mask_green": "./client/public/assets/final/walk/customer-asian-young-boy-mask-green-walk-{frame}.png",
+    "customer_asian_young_girl_mask_pink": "./client/public/assets/final/walk/customer-asian-young-girl-mask-pink-walk-{frame}.png"
   },
   "servedFrames": {
     "customer_man": "./client/public/assets/final/served/customer-man-served.png",
@@ -90,6 +114,18 @@
     "customer_asian_old_man_ochre": "./client/public/assets/final/served/customer-asian-old-man-ochre-served.png",
     "customer_asian_old_woman_berry": "./client/public/assets/final/served/customer-asian-old-woman-berry-served.png",
     "customer_asian_young_boy_lime": "./client/public/assets/final/served/customer-asian-young-boy-lime-served.png",
-    "customer_asian_young_girl_violet": "./client/public/assets/final/served/customer-asian-young-girl-violet-served.png"
+    "customer_asian_young_girl_violet": "./client/public/assets/final/served/customer-asian-young-girl-violet-served.png",
+    "customer_man_hippie": "./client/public/assets/final/served/customer-man-hippie-served.png",
+    "customer_woman_hippie": "./client/public/assets/final/served/customer-woman-hippie-served.png",
+    "customer_young_girl_hippie": "./client/public/assets/final/served/customer-young-girl-hippie-served.png",
+    "customer_asian_young_boy_hippie": "./client/public/assets/final/served/customer-asian-young-boy-hippie-served.png",
+    "customer_man_helmet_black": "./client/public/assets/final/served/customer-man-helmet-black-served.png",
+    "customer_woman_helmet_white": "./client/public/assets/final/served/customer-woman-helmet-white-served.png",
+    "customer_young_boy_helmet_red": "./client/public/assets/final/served/customer-young-boy-helmet-red-served.png",
+    "customer_asian_woman_helmet_blue": "./client/public/assets/final/served/customer-asian-woman-helmet-blue-served.png",
+    "customer_old_man_mask_black": "./client/public/assets/final/served/customer-old-man-mask-black-served.png",
+    "customer_old_woman_mask_white": "./client/public/assets/final/served/customer-old-woman-mask-white-served.png",
+    "customer_asian_young_boy_mask_green": "./client/public/assets/final/served/customer-asian-young-boy-mask-green-served.png",
+    "customer_asian_young_girl_mask_pink": "./client/public/assets/final/served/customer-asian-young-girl-mask-pink-served.png"
   }
 }
