@@ -16,6 +16,13 @@ const BASE_SPAWN_INTERVAL = 6.0;
 const SPAWN_VARIANCE = 1.5;
 const WEATHER_WINDOW = [45, 75];
 const RAIN_DURATION = 20;
+const SHIFT_PHASE_DURATION = 45;
+const SHIFT_PHASES = [
+  { id: "morning", label: "Morning" },
+  { id: "afternoon", label: "Afternoon" },
+  { id: "evening", label: "Evening" },
+];
+const LEVEL_DURATION = SHIFT_PHASE_DURATION * SHIFT_PHASES.length;
 const TABLE_ROWS = 2;
 const TABLE_COLUMNS = 4;
 const BOARD_WIDTH = 960;
@@ -89,7 +96,8 @@ const ui = {
   tablesValue: document.getElementById("tables-value"),
   flowValue: document.getElementById("flow-value"),
   saveValue: document.getElementById("save-value"),
-  sessionValue: document.getElementById("session-value"),
+  shiftLabel: document.getElementById("shift-label"),
+  shiftValue: document.getElementById("shift-value"),
   titleOverlay: document.getElementById("title-overlay"),
   overlayCopy: document.getElementById("overlay-copy"),
   startButton: document.getElementById("start-button"),
@@ -227,6 +235,14 @@ function createDefaultState() {
     weatherState: "clear",
     weatherRemaining: 0,
     nextWeatherRollIn: randomInRange(...WEATHER_WINDOW),
+    dayNumber: 1,
+    levelElapsed: 0,
+    timeOfDay: SHIFT_PHASES[0].id,
+    levelComplete: false,
+    levelServed: 0,
+    levelMissed: 0,
+    levelCoinsEarned: 0,
+    lastLevelSummary: null,
     sessionStartedAt: now,
     lastSavedAt: now,
     lastSimulatedAt: now,
@@ -269,6 +285,14 @@ function restoreState(saved) {
     weatherState: saved.weatherState === "rain" ? "rain" : "clear",
     weatherRemaining: asNumber(saved.weatherRemaining, base.weatherRemaining),
     nextWeatherRollIn: asNumber(saved.nextWeatherRollIn, base.nextWeatherRollIn),
+    dayNumber: Math.max(1, asNumber(saved.dayNumber, base.dayNumber)),
+    levelElapsed: clampLevelElapsed(asNumber(saved.levelElapsed, base.levelElapsed)),
+    timeOfDay: normalizeTimeOfDay(saved.timeOfDay, asNumber(saved.levelElapsed, base.levelElapsed)),
+    levelComplete: Boolean(saved.levelComplete),
+    levelServed: asNumber(saved.levelServed, base.levelServed),
+    levelMissed: asNumber(saved.levelMissed, base.levelMissed),
+    levelCoinsEarned: asNumber(saved.levelCoinsEarned, base.levelCoinsEarned),
+    lastLevelSummary: normalizeLevelSummary(saved.lastLevelSummary),
     sessionStartedAt: asNumber(saved.sessionStartedAt, base.sessionStartedAt),
     lastSavedAt: asNumber(saved.lastSavedAt, base.lastSavedAt),
     lastSimulatedAt: Date.now(),
@@ -279,6 +303,13 @@ function restoreState(saved) {
       dropped: asNumber(saved?.stats?.dropped, base.stats.dropped),
     },
   };
+
+  if (restored.levelComplete) {
+    restored.levelElapsed = LEVEL_DURATION;
+    restored.timeOfDay = SHIFT_PHASES[SHIFT_PHASES.length - 1].id;
+  } else {
+    restored.timeOfDay = normalizeTimeOfDay(restored.timeOfDay, restored.levelElapsed);
+  }
 
   restored.tables = TABLE_LAYOUT.map((table) => {
     const incoming = Array.isArray(saved.tables)
@@ -507,12 +538,113 @@ function frameLoop(timestamp) {
 function updateLogic(deltaSeconds) {
   gameState.lastSimulatedAt = Date.now();
 
+  if (updateShift(deltaSeconds)) {
+    updateHud();
+    return;
+  }
+
   updateWeather(deltaSeconds);
   updateSpawning(deltaSeconds);
   updateCustomers(deltaSeconds);
   syncTablesFromCustomers();
   updateFloatingTexts(deltaSeconds);
   updateHud();
+}
+
+function updateShift(deltaSeconds) {
+  if (gameState.levelComplete) {
+    return true;
+  }
+
+  const previousPhase = getShiftPhaseInfo(gameState.levelElapsed);
+  gameState.levelElapsed = clampLevelElapsed(gameState.levelElapsed + deltaSeconds);
+  const nextPhase = getShiftPhaseInfo(gameState.levelElapsed);
+
+  if (previousPhase.id !== nextPhase.id) {
+    gameState.timeOfDay = nextPhase.id;
+    showToast(getShiftPhaseToast(nextPhase));
+  } else {
+    gameState.timeOfDay = nextPhase.id;
+  }
+
+  if (gameState.levelElapsed >= LEVEL_DURATION) {
+    completeLevel();
+    return true;
+  }
+
+  return false;
+}
+
+function completeLevel() {
+  const summary = {
+    dayNumber: gameState.dayNumber,
+    served: gameState.levelServed,
+    missed: gameState.levelMissed,
+    coinsEarned: gameState.levelCoinsEarned,
+  };
+
+  gameState.levelComplete = true;
+  gameState.levelElapsed = LEVEL_DURATION;
+  gameState.timeOfDay = SHIFT_PHASES[SHIFT_PHASES.length - 1].id;
+  gameState.lastLevelSummary = summary;
+
+  clearLevelBoard();
+  runtime.mode = "title";
+  runtime.lastFrame = 0;
+  runtime.accumulator = 0;
+  runtime.autoSaveTimer = 0;
+  showToast(`Day ${summary.dayNumber} is done. Evening service is over.`);
+  updateOverlay();
+  updateHud();
+  void persistGameState("day-complete");
+}
+
+function startNextLevel() {
+  if (gameState.levelComplete) {
+    gameState.dayNumber += 1;
+  }
+
+  resetLevelProgress();
+  runtime.mode = "playing";
+  runtime.lastFrame = 0;
+  runtime.accumulator = 0;
+  runtime.autoSaveTimer = 0;
+  gameState.audioUnlocked = true;
+  runtime.audio.unlock();
+  ui.titleOverlay.classList.add("hidden");
+  showToast(`Day ${gameState.dayNumber} starts in the morning.`);
+  updateOverlay();
+  updateHud();
+  void persistGameState(gameState.dayNumber === 1 ? "start" : "next-day");
+}
+
+function resetLevelProgress() {
+  gameState.levelElapsed = 0;
+  gameState.timeOfDay = SHIFT_PHASES[0].id;
+  gameState.levelComplete = false;
+  gameState.levelServed = 0;
+  gameState.levelMissed = 0;
+  gameState.levelCoinsEarned = 0;
+  gameState.lastLevelSummary = null;
+  gameState.weatherState = "clear";
+  gameState.weatherRemaining = 0;
+  gameState.nextWeatherRollIn = randomInRange(...WEATHER_WINDOW);
+  gameState.spawnTimer = randomSpawnInterval(1);
+  clearLevelBoard();
+}
+
+function clearLevelBoard() {
+  gameState.tables = TABLE_LAYOUT.map((table) => ({
+    id: table.id,
+    status: "empty",
+    customerId: null,
+    waitElapsed: 0,
+    serviceElapsed: 0,
+    enjoyElapsed: 0,
+    lastOutcome: null,
+  }));
+  gameState.customers = [];
+  runtime.floatingTexts = [];
 }
 
 function updateWeather(deltaSeconds) {
@@ -584,6 +716,7 @@ function updateCustomers(deltaSeconds) {
         table.lastOutcome = "missed";
         beginExit(customer, table);
         gameState.totalMissed += 1;
+        gameState.levelMissed += 1;
         gameState.score = Math.max(0, gameState.score - 1);
         spawnFloatingText({
           text: "Too late",
@@ -759,6 +892,8 @@ function finishService(customer, table) {
   gameState.tipCoins += tipGain;
   gameState.score += 1 + scoreGain;
   gameState.totalServed += 1;
+  gameState.levelServed += 1;
+  gameState.levelCoinsEarned += 1 + tipGain;
   customer.rewardGranted = true;
   customer.tipReward = tipGain;
   customer.phase = "enjoying";
@@ -876,15 +1011,31 @@ function handleStartButton() {
     return;
   }
 
+  if (runtime.mode === "paused") {
+    runtime.mode = "playing";
+    runtime.lastFrame = 0;
+    ui.titleOverlay.classList.add("hidden");
+    showToast("Back to service.");
+    updateOverlay();
+    updateHud();
+    return;
+  }
+
+  if (gameState.levelComplete) {
+    startNextLevel();
+    return;
+  }
+
   runtime.mode = "playing";
   runtime.lastFrame = 0;
   runtime.accumulator = 0;
+  runtime.autoSaveTimer = 0;
   gameState.audioUnlocked = true;
   runtime.audio.unlock();
   ui.titleOverlay.classList.add("hidden");
   updateOverlay();
   updateHud();
-  void persistGameState("start");
+  void persistGameState(gameState.levelElapsed > 0 ? "continue" : "start");
 }
 
 async function handleInstallButton() {
@@ -899,7 +1050,7 @@ async function handleInstallButton() {
 }
 
 function buyUpgrade(kind) {
-  if (runtime.mode === "title") {
+  if (runtime.mode === "title" && !gameState.levelComplete) {
     handleStartButton();
   }
 
@@ -1009,6 +1160,9 @@ function applyResumeSimulation(elapsedSeconds) {
     let remaining = catchUp;
     while (remaining > 0) {
       const step = Math.min(FIXED_STEP, remaining);
+      if (updateShift(step)) {
+        break;
+      }
       updateWeather(step);
       updateSpawning(step);
       updateCustomers(step);
@@ -1018,7 +1172,7 @@ function applyResumeSimulation(elapsedSeconds) {
     }
   }
 
-  if (extraIdle > 0) {
+  if (runtime.mode === "playing" && extraIdle > 0) {
     const estimatedCoins = Math.floor(
       (extraIdle / BASE_SPAWN_INTERVAL) * IDLE_EFFICIENCY,
     );
@@ -1030,7 +1184,9 @@ function applyResumeSimulation(elapsedSeconds) {
   }
 
   updateHud();
-  void persistGameState("resume");
+  if (runtime.mode === "playing") {
+    void persistGameState("resume");
+  }
 }
 
 function renderScene(timestamp) {
@@ -1043,6 +1199,8 @@ function renderScene(timestamp) {
   if (gameState.weatherState === "rain") {
     drawRainOverlay(timestamp);
   }
+
+  drawDaylightOverlay();
 
   if (runtime.mode === "paused") {
     drawPauseHint();
@@ -1341,6 +1499,43 @@ function drawRainOverlay(timestamp) {
   ctx.restore();
 }
 
+function drawDaylightOverlay() {
+  const phase = getShiftPhaseInfo(gameState.levelElapsed);
+
+  ctx.save();
+  if (phase.id === "morning") {
+    const skyGlow = ctx.createLinearGradient(0, 0, 0, BOARD_HEIGHT);
+    skyGlow.addColorStop(0, "rgba(255, 229, 177, 0.16)");
+    skyGlow.addColorStop(0.58, "rgba(255, 244, 216, 0.06)");
+    skyGlow.addColorStop(1, "rgba(255, 255, 255, 0)");
+    ctx.fillStyle = skyGlow;
+    ctx.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+
+    const sunGlow = ctx.createRadialGradient(176, 92, 24, 176, 92, 248);
+    sunGlow.addColorStop(0, "rgba(255, 247, 212, 0.16)");
+    sunGlow.addColorStop(1, "rgba(255, 247, 212, 0)");
+    ctx.fillStyle = sunGlow;
+    ctx.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+  } else if (phase.id === "afternoon") {
+    ctx.fillStyle = "rgba(255, 244, 216, 0.05)";
+    ctx.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+  } else {
+    const duskShade = ctx.createLinearGradient(0, 0, 0, BOARD_HEIGHT);
+    duskShade.addColorStop(0, "rgba(80, 70, 106, 0.18)");
+    duskShade.addColorStop(0.65, "rgba(52, 45, 74, 0.12)");
+    duskShade.addColorStop(1, "rgba(255, 168, 121, 0.05)");
+    ctx.fillStyle = duskShade;
+    ctx.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+
+    const streetGlow = ctx.createRadialGradient(152, 428, 32, 152, 428, 280);
+    streetGlow.addColorStop(0, "rgba(255, 201, 134, 0.12)");
+    streetGlow.addColorStop(1, "rgba(255, 201, 134, 0)");
+    ctx.fillStyle = streetGlow;
+    ctx.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+  }
+  ctx.restore();
+}
+
 function drawPauseHint() {
   ctx.save();
   ctx.fillStyle = "rgba(23, 12, 8, 0.56)";
@@ -1362,6 +1557,7 @@ function renderToast() {
 
 function updateHud() {
   const busyTables = gameState.tables.filter((table) => table.status !== "empty").length;
+  const shiftPhase = getShiftPhaseInfo(gameState.levelElapsed);
 
   ui.coinsValue.textContent = String(gameState.coins);
   ui.scoreValue.textContent = String(gameState.score);
@@ -1374,7 +1570,10 @@ function updateHud() {
   ui.tablesValue.textContent = `${busyTables} / ${TABLE_LAYOUT.length}`;
   ui.flowValue.textContent = `${gameState.totalServed} served / ${gameState.totalMissed} missed`;
   ui.saveValue.textContent = runtime.saveStatus;
-  ui.sessionValue.textContent = formatElapsed(Date.now() - gameState.sessionStartedAt);
+  ui.shiftLabel.textContent = `Day ${gameState.dayNumber}`;
+  ui.shiftValue.textContent = gameState.levelComplete
+    ? "Complete"
+    : `${shiftPhase.label} ${formatCountdown(shiftPhase.remainingInPhase)}`;
   ui.pauseButton.innerHTML =
     runtime.mode === "paused"
       ? 'Resume<small>back to service</small>'
@@ -1396,12 +1595,33 @@ function updateHud() {
 }
 
 function updateOverlay() {
+  const shiftPhase = getShiftPhaseInfo(gameState.levelElapsed);
+
+  if (gameState.levelComplete) {
+    const summary = gameState.lastLevelSummary ?? {
+      dayNumber: gameState.dayNumber,
+      served: gameState.levelServed,
+      missed: gameState.levelMissed,
+      coinsEarned: gameState.levelCoinsEarned,
+    };
+    const nextDay = gameState.dayNumber + 1;
+    ui.titleOverlay.classList.remove("hidden");
+    ui.startButton.textContent = `Start Day ${nextDay}`;
+    ui.overlayCopy.textContent =
+      `Day ${summary.dayNumber} closed after evening. Served ${summary.served}, missed ${summary.missed}, earned ${summary.coinsEarned} coins. Tap to open morning on Day ${nextDay}.`;
+    return;
+  }
+
   if (runtime.mode === "title") {
     ui.titleOverlay.classList.remove("hidden");
     ui.startButton.textContent =
-      gameState.totalServed > 0 || gameState.coins > 0 ? "Continue Stall" : "Open Stall";
+      gameState.levelElapsed > 0 || gameState.totalServed > 0 || gameState.coins > 0
+        ? `Continue Day ${gameState.dayNumber}`
+        : `Open Day ${gameState.dayNumber}`;
     ui.overlayCopy.textContent =
-      "Tap a table to serve before the countdown hits zero. Quick service earns points and possible tips.";
+      gameState.levelElapsed > 0
+        ? `Day ${gameState.dayNumber} is in ${shiftPhase.label.toLowerCase()}. ${formatCountdown(shiftPhase.remainingInLevel)} remain before the evening close.`
+        : "Each day runs from morning to afternoon to evening. Tap a table to serve before the timers and the shift clock run out.";
     return;
   }
 
@@ -1514,6 +1734,35 @@ function findAvailableCustomerType() {
   return availableTypes[Math.floor(Math.random() * availableTypes.length)];
 }
 
+function getShiftPhaseInfo(elapsed = gameState.levelElapsed) {
+  const clampedElapsed = clampLevelElapsed(elapsed);
+  const phaseIndex = Math.min(
+    SHIFT_PHASES.length - 1,
+    Math.floor(clampedElapsed / SHIFT_PHASE_DURATION),
+  );
+  const phase = SHIFT_PHASES[phaseIndex];
+  const phaseEnd = (phaseIndex + 1) * SHIFT_PHASE_DURATION;
+
+  return {
+    ...phase,
+    phaseIndex,
+    remainingInPhase: Math.max(0, phaseEnd - clampedElapsed),
+    remainingInLevel: Math.max(0, LEVEL_DURATION - clampedElapsed),
+  };
+}
+
+function getShiftPhaseToast(phase) {
+  if (phase.id === "afternoon") {
+    return "Afternoon rush started. The light is brighter now.";
+  }
+
+  if (phase.id === "evening") {
+    return "Evening settled in. The patio light is getting warmer.";
+  }
+
+  return "Morning service started.";
+}
+
 function currentServeTime() {
   return gameState.serveLevel > 0 ? FAST_SERVE_TIME : BASE_SERVE_TIME;
 }
@@ -1542,8 +1791,37 @@ function formatElapsed(milliseconds) {
   return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
+function formatCountdown(seconds) {
+  return formatElapsed(Math.ceil(Math.max(0, seconds)) * 1000);
+}
+
 function asNumber(value, fallback) {
   return Number.isFinite(Number(value)) ? Number(value) : fallback;
+}
+
+function clampLevelElapsed(value) {
+  return Math.max(0, Math.min(LEVEL_DURATION, value));
+}
+
+function normalizeTimeOfDay(value, elapsed = 0) {
+  if (SHIFT_PHASES.some((phase) => phase.id === value)) {
+    return value;
+  }
+
+  return getShiftPhaseInfo(elapsed).id;
+}
+
+function normalizeLevelSummary(summary) {
+  if (!summary || typeof summary !== "object") {
+    return null;
+  }
+
+  return {
+    dayNumber: Math.max(1, asNumber(summary.dayNumber, 1)),
+    served: asNumber(summary.served, 0),
+    missed: asNumber(summary.missed, 0),
+    coinsEarned: asNumber(summary.coinsEarned, 0),
+  };
 }
 
 function customerLabel(type) {
@@ -1674,6 +1952,15 @@ function exposeDebugState() {
         totalMissed: gameState.totalMissed,
         umbrellaOwned: gameState.umbrellaOwned,
         serveLevel: gameState.serveLevel,
+        dayNumber: gameState.dayNumber,
+        levelElapsed: gameState.levelElapsed,
+        levelComplete: gameState.levelComplete,
+        levelServed: gameState.levelServed,
+        levelMissed: gameState.levelMissed,
+        levelCoinsEarned: gameState.levelCoinsEarned,
+        lastLevelSummary: structuredClone(gameState.lastLevelSummary),
+        timeOfDay: gameState.timeOfDay,
+        levelRemaining: getShiftPhaseInfo(gameState.levelElapsed).remainingInLevel,
         weatherState: gameState.weatherState,
         weatherRemaining: gameState.weatherRemaining,
         layout: structuredClone(TABLE_LAYOUT),

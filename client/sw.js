@@ -1,4 +1,4 @@
-const CACHE_NAME = "sidewalk-iced-tea-planb-v9";
+const CACHE_NAME = "sidewalk-iced-tea-planb-v10";
 const CUSTOMER_ASSET_NAMES = [
   "customer-man",
   "customer-woman",

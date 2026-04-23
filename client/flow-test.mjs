@@ -8,6 +8,8 @@ const SAVE_KEY = "sidewalk-iced-tea:save-fallback";
 const SAVE_BACKUP_KEY = "sidewalk-iced-tea:save-backup";
 const ACTIVE_SLOT_POINTER = "sidewalk-iced-tea:active-slot";
 const SAVE_SLOT_KEY = "slot-1";
+const SHIFT_PHASE_DURATION = 45;
+const LEVEL_DURATION = SHIFT_PHASE_DURATION * 3;
 
 const TABLE_LAYOUT = buildTableLayout();
 const CUSTOMER_TYPES = [
@@ -132,6 +134,53 @@ try {
         0.3,
         "waiting timer should advance after resume",
       );
+      await page.context().close();
+    });
+
+    await runFlow(results, "shift phases advance and next day starts fresh", async () => {
+      let page = await newPage(browser, makeBaseSave({ levelElapsed: SHIFT_PHASE_DURATION - 0.2 }));
+      await page.goto(serverUrl, { waitUntil: "networkidle" });
+      await waitForApp(page);
+      await page.click("#start-button");
+      await page.waitForFunction(
+        () => window.__planBGame.getSnapshot().timeOfDay === "afternoon",
+      );
+      let snapshot = await getSnapshot(page);
+      expectEqual(snapshot.timeOfDay, "afternoon", "shift should advance into afternoon");
+      await page.context().close();
+
+      page = await newPage(browser, makeBaseSave({
+        dayNumber: 1,
+        levelElapsed: LEVEL_DURATION - 0.2,
+        levelServed: 3,
+        levelMissed: 1,
+        levelCoinsEarned: 4,
+      }));
+      await page.goto(serverUrl, { waitUntil: "networkidle" });
+      await waitForApp(page);
+      await page.click("#start-button");
+      await page.waitForFunction(() => {
+        const snapshot = window.__planBGame.getSnapshot();
+        return snapshot.levelComplete && snapshot.mode === "title";
+      });
+      snapshot = await getSnapshot(page);
+      expectEqual(snapshot.timeOfDay, "evening", "completed day should finish in evening");
+      expectEqual(snapshot.lastLevelSummary.dayNumber, 1, "summary should record the finished day");
+      expectEqual(snapshot.lastLevelSummary.served, 3, "summary should preserve day served count");
+
+      await page.click("#start-button");
+      await page.waitForFunction(() => {
+        const snapshot = window.__planBGame.getSnapshot();
+        return (
+          snapshot.mode === "playing" &&
+          snapshot.dayNumber === 2 &&
+          snapshot.timeOfDay === "morning" &&
+          snapshot.levelComplete === false
+        );
+      });
+      snapshot = await getSnapshot(page);
+      expectLessThan(snapshot.levelElapsed, 1, "new day should restart the shift clock");
+      expectEqual(snapshot.customers.length, 0, "new day should start with an empty patio");
       await page.context().close();
     });
 
@@ -439,6 +488,14 @@ function makeBaseSave(overrides = {}) {
     weatherState: "clear",
     weatherRemaining: 0,
     nextWeatherRollIn: 999,
+    dayNumber: 1,
+    levelElapsed: 0,
+    timeOfDay: "morning",
+    levelComplete: false,
+    levelServed: 0,
+    levelMissed: 0,
+    levelCoinsEarned: 0,
+    lastLevelSummary: null,
     sessionStartedAt: now,
     lastSavedAt: now,
     lastSimulatedAt: now,
