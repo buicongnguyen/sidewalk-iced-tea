@@ -10,6 +10,7 @@ const ACTIVE_SLOT_POINTER = "sidewalk-iced-tea:active-slot";
 const SAVE_SLOT_KEY = "slot-1";
 const SHIFT_PHASE_DURATION = 45;
 const LEVEL_DURATION = SHIFT_PHASE_DURATION * 3;
+const TABLE_CAPACITY = 2;
 
 const TABLE_LAYOUT = buildTableLayout();
 const CUSTOMER_TYPES = [
@@ -278,7 +279,7 @@ try {
       await waitForApp(page);
       await page.click("#start-button");
       await page.waitForFunction(
-        () => window.__planBGame.getSnapshot().customers.length === 8,
+        () => window.__planBGame.getSnapshot().customers.length === 16,
       );
       const snapshot = await getSnapshot(page);
       const activeTypes = snapshot.customers.map((customer) => customer.type);
@@ -287,6 +288,48 @@ try {
         activeTypes.length,
         "screen should not contain duplicate customer types",
       );
+      await page.context().close();
+    });
+
+    await runFlow(results, "mask and helmet variants stay rare", async () => {
+      const page = await newPage(browser, makeBaseSave());
+      await page.goto(serverUrl, { waitUntil: "networkidle" });
+      await waitForApp(page);
+      const snapshot = await getSnapshot(page);
+      const rareCustomers = snapshot.customerCatalog.filter(
+        (customerType) => customerType.id.includes("_helmet_") || customerType.id.includes("_mask_"),
+      );
+      const commonCustomers = snapshot.customerCatalog.filter(
+        (customerType) => !customerType.id.includes("_helmet_") && !customerType.id.includes("_mask_"),
+      );
+      expectEqual(
+        rareCustomers.every((customerType) => customerType.spawnWeight < commonCustomers[0].spawnWeight),
+        true,
+        "helmet and mask variants should use a lower spawn weight",
+      );
+      await page.context().close();
+    });
+
+    await runFlow(results, "tables can seat two customers at once", async () => {
+      const page = await newPage(browser, makeOneOpenSeatSave(), { randomValue: 0 });
+      await page.goto(serverUrl, { waitUntil: "networkidle" });
+      await waitForApp(page);
+      await page.click("#start-button");
+      await page.waitForFunction(
+        () => window.__planBGame.getSnapshot().customers.length === 16,
+      );
+      const snapshot = await getSnapshot(page);
+      const sharedTableCustomers = snapshot.customers.filter(
+        (customer) => customer.tableId === "table-1-0" && customer.phase !== "walking_out",
+      );
+      expectEqual(sharedTableCustomers.length, 2, "one table should be able to host two customers");
+      expectEqual(
+        new Set(sharedTableCustomers.map((customer) => customer.seatIndex)).size,
+        2,
+        "shared table customers should use different seats",
+      );
+      const sharedTable = snapshot.tables.find((table) => table.id === "table-1-0");
+      expectEqual(sharedTable.customerIds.length, 2, "table state should track both seated customers");
       await page.context().close();
     });
 
@@ -323,7 +366,11 @@ try {
       await page.click("#start-button");
       await page.waitForFunction(() => window.__planBGame.getSnapshot().stats.dropped > 0);
       const snapshot = await getSnapshot(page);
-      expectEqual(snapshot.customers.length, TABLE_LAYOUT.length, "full shop should stay capped");
+      expectEqual(
+        snapshot.customers.length,
+        TABLE_LAYOUT.length * TABLE_CAPACITY,
+        "full shop should stay capped at two customers per table",
+      );
       expectEqual(snapshot.stats.dropped, 1, "overflow customer should be counted as dropped");
       await page.context().close();
     });
@@ -505,6 +552,7 @@ function makeBaseSave(overrides = {}) {
     tables: TABLE_LAYOUT.map((table) => ({
       id: table.id,
       status: "empty",
+      customerIds: [],
       customerId: null,
       waitElapsed: 0,
       serviceElapsed: 0,
@@ -522,9 +570,10 @@ function makeBaseSave(overrides = {}) {
 function makeWaitingSave({ waitElapsed = 0, coins = 0, score = 0 } = {}) {
   const state = makeBaseSave({ coins, score, nextCustomerId: 2 });
   const layout = TABLE_LAYOUT.find((table) => table.id === "table-1-0");
-  const customer = makeCustomer({ id: 1, type: "young_boy", layout, waitElapsed });
+  const customer = makeCustomer({ id: 1, type: "young_boy", layout, waitElapsed, seatIndex: 0 });
   const table = state.tables.find((entry) => entry.id === layout.id);
   table.status = "waiting";
+  table.customerIds = [customer.id];
   table.customerId = customer.id;
   table.waitElapsed = waitElapsed;
   state.customers.push(customer);
@@ -532,18 +581,24 @@ function makeWaitingSave({ waitElapsed = 0, coins = 0, score = 0 } = {}) {
 }
 
 function makeFullTableSave() {
-  const state = makeBaseSave({ nextCustomerId: TABLE_LAYOUT.length + 1, spawnTimer: 0 });
+  const state = makeBaseSave({
+    nextCustomerId: (TABLE_LAYOUT.length * TABLE_CAPACITY) + 1,
+    spawnTimer: 0,
+  });
+  const allSeats = getAllTableSeats();
 
-  TABLE_LAYOUT.forEach((layout, index) => {
+  allSeats.forEach(({ layout, seatIndex }, index) => {
     const customer = makeCustomer({
       id: index + 1,
       type: CUSTOMER_TYPES[index % CUSTOMER_TYPES.length],
       layout,
       waitElapsed: 1,
+      seatIndex,
     });
     const table = state.tables.find((entry) => entry.id === layout.id);
     table.status = "waiting";
-    table.customerId = customer.id;
+    table.customerIds.push(customer.id);
+    table.customerId = table.customerIds[0];
     table.waitElapsed = 1;
     state.customers.push(customer);
   });
@@ -552,19 +607,22 @@ function makeFullTableSave() {
 }
 
 function makeNearlyFullUniqueSave() {
-  const activeCustomerCount = TABLE_LAYOUT.length - 1;
+  const activeCustomerCount = (TABLE_LAYOUT.length * TABLE_CAPACITY) - 1;
   const state = makeBaseSave({ nextCustomerId: activeCustomerCount + 1, spawnTimer: 0 });
+  const allSeats = getAllTableSeats();
 
-  TABLE_LAYOUT.slice(0, activeCustomerCount).forEach((layout, index) => {
+  allSeats.slice(0, activeCustomerCount).forEach(({ layout, seatIndex }, index) => {
     const customer = makeCustomer({
       id: index + 1,
       type: CUSTOMER_TYPES[index],
       layout,
       waitElapsed: 1,
+      seatIndex,
     });
     const table = state.tables.find((entry) => entry.id === layout.id);
     table.status = "waiting";
-    table.customerId = customer.id;
+    table.customerIds.push(customer.id);
+    table.customerId = table.customerIds[0];
     table.waitElapsed = 1;
     state.customers.push(customer);
   });
@@ -572,16 +630,32 @@ function makeNearlyFullUniqueSave() {
   return state;
 }
 
-function makeCustomer({ id, type, layout, waitElapsed }) {
+function makeOneOpenSeatSave() {
+  const state = makeFullTableSave();
+  const removedCustomer = state.customers.find(
+    (customer) => customer.tableId === "table-1-0" && customer.seatIndex === 1,
+  );
+  state.customers = state.customers.filter((customer) => customer.id !== removedCustomer.id);
+  const table = state.tables.find((entry) => entry.id === "table-1-0");
+  table.customerIds = table.customerIds.filter((customerId) => customerId !== removedCustomer.id);
+  table.customerId = table.customerIds[0] ?? null;
+  state.nextCustomerId = state.customers.length + 1;
+  state.spawnTimer = 0;
+  return state;
+}
+
+function makeCustomer({ id, type, layout, waitElapsed, seatIndex }) {
+  const seat = getSeat(layout, seatIndex);
   return {
     id,
     type,
     phase: "waiting",
     rainUmbrella: false,
-    x: layout.seatX,
-    y: layout.seatY,
-    targetX: layout.seatX,
-    targetY: layout.seatY,
+    seatIndex,
+    x: seat.x,
+    y: seat.y,
+    targetX: seat.x,
+    targetY: seat.y,
     waypoints: [],
     tableId: layout.id,
     speed: 140,
@@ -620,11 +694,25 @@ function buildTableLayout() {
         approachY: y + height + 12,
         seatX: x + width / 2,
         seatY: y + height + 16,
+        seats: [
+          { x: x + (width / 2) - 24, y: y + height + 20 },
+          { x: x + (width / 2) + 24, y: y + height + 12 },
+        ],
       });
     }
   }
 
   return layout;
+}
+
+function getAllTableSeats() {
+  return TABLE_LAYOUT.flatMap((layout) =>
+    layout.seats.map((seat, seatIndex) => ({ layout, seat, seatIndex })),
+  );
+}
+
+function getSeat(layout, seatIndex) {
+  return layout.seats[seatIndex] ?? layout.seats[0];
 }
 
 function expectEqual(actual, expected, message) {

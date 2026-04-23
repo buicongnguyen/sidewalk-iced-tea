@@ -23,6 +23,7 @@ const SHIFT_PHASES = [
   { id: "evening", label: "Evening" },
 ];
 const LEVEL_DURATION = SHIFT_PHASE_DURATION * SHIFT_PHASES.length;
+const TABLE_CAPACITY = 2;
 const TABLE_ROWS = 2;
 const TABLE_COLUMNS = 4;
 const BOARD_WIDTH = 960;
@@ -33,6 +34,7 @@ const DOOR_OUTSIDE_Y = 78;
 const DOOR_INSIDE_X = AISLE_X;
 const DOOR_INSIDE_Y = 116;
 const WALK_FRAME_COUNT = 4;
+const RARE_ACCESSORY_WEIGHT = 0.2;
 
 const CUSTOMER_TYPES = [
   { id: "man", assetId: "customer_man", label: "Man" },
@@ -213,6 +215,10 @@ function buildTableLayout() {
         approachY: y + height + 12,
         seatX: x + width / 2,
         seatY: y + height + 16,
+        seats: [
+          { x: x + (width / 2) - 24, y: y + height + 20 },
+          { x: x + (width / 2) + 24, y: y + height + 12 },
+        ],
       });
     }
   }
@@ -251,6 +257,7 @@ function createDefaultState() {
     tables: TABLE_LAYOUT.map((table) => ({
       id: table.id,
       status: "empty",
+      customerIds: [],
       customerId: null,
       waitElapsed: 0,
       serviceElapsed: 0,
@@ -317,6 +324,14 @@ function restoreState(saved) {
     return {
       id: table.id,
       status: incoming?.status ?? "empty",
+      customerIds: Array.isArray(incoming?.customerIds)
+        ? incoming.customerIds
+            .map((customerId) => asNumber(customerId, null))
+            .filter((customerId) => customerId !== null)
+            .slice(0, TABLE_CAPACITY)
+        : incoming?.customerId != null
+          ? [incoming.customerId]
+          : [],
       customerId: incoming?.customerId ?? null,
       waitElapsed: asNumber(incoming?.waitElapsed, 0),
       serviceElapsed: asNumber(incoming?.serviceElapsed, 0),
@@ -346,16 +361,20 @@ function normalizeCustomer(customer) {
     return null;
   }
 
+  const seatIndex = normalizeSeatIndex(customer.seatIndex, tableLayout, customer.x);
+  const seat = getSeatPosition(tableLayout, seatIndex);
+
   return {
     id: asNumber(customer.id, 0),
     type: customerType.id,
     phase: customer.phase ?? "waiting",
     rainUmbrella: Boolean(customer.rainUmbrella),
-    x: asNumber(customer.x, tableLayout.seatX),
-    y: asNumber(customer.y, tableLayout.seatY),
-    targetX: asNumber(customer.targetX, tableLayout.seatX),
-    targetY: asNumber(customer.targetY, tableLayout.seatY),
-    waypoints: normalizeWaypoints(customer.waypoints, tableLayout, customer.phase),
+    seatIndex,
+    x: asNumber(customer.x, seat.x),
+    y: asNumber(customer.y, seat.y),
+    targetX: asNumber(customer.targetX, seat.x),
+    targetY: asNumber(customer.targetY, seat.y),
+    waypoints: normalizeWaypoints(customer.waypoints, tableLayout, customer.phase, seatIndex),
     tableId: tableLayout.id,
     speed: asNumber(customer.speed, 140),
     waitElapsed: asNumber(customer.waitElapsed, 0),
@@ -635,6 +654,7 @@ function clearLevelBoard() {
   gameState.tables = TABLE_LAYOUT.map((table) => ({
     id: table.id,
     status: "empty",
+    customerIds: [],
     customerId: null,
     waitElapsed: 0,
     serviceElapsed: 0,
@@ -688,6 +708,7 @@ function updateCustomers(deltaSeconds) {
   for (const customer of gameState.customers) {
     const table = getTableState(customer.tableId);
     const tableLayout = getTableLayout(customer.tableId);
+    const seat = tableLayout ? getSeatPosition(tableLayout, customer.seatIndex) : null;
 
     if (!table || !tableLayout) {
       customersToRemove.add(customer.id);
@@ -698,8 +719,8 @@ function updateCustomers(deltaSeconds) {
       const reachedSeat = moveAlongWaypoints(customer, deltaSeconds);
       if (reachedSeat) {
         customer.phase = "waiting";
-        customer.x = tableLayout.seatX;
-        customer.y = tableLayout.seatY;
+        customer.x = seat.x;
+        customer.y = seat.y;
         table.status = "waiting";
         table.waitElapsed = customer.waitElapsed;
       }
@@ -718,7 +739,7 @@ function updateCustomers(deltaSeconds) {
         gameState.score = Math.max(0, gameState.score - 1);
         spawnFloatingText({
           text: "Too late",
-          x: tableLayout.seatX,
+          x: seat.x,
           y: tableLayout.y - 10,
           color: "#ffd5d5",
         });
@@ -765,60 +786,52 @@ function updateCustomers(deltaSeconds) {
 
 function syncTablesFromCustomers() {
   for (const table of gameState.tables) {
-    const customer = gameState.customers.find((entry) => entry.id === table.customerId);
+    const customers = getOccupyingTableCustomers(table.id);
+    const waitingCustomer = getPriorityTableCustomer(table.id, "waiting");
+    const servingCustomer = getPriorityTableCustomer(table.id, "being_served");
+    const enjoyingCustomer = getPriorityTableCustomer(table.id, "enjoying");
 
-    if (!customer) {
+    table.customerIds = customers.map((customer) => customer.id);
+    table.customerId = table.customerIds[0] ?? null;
+    table.waitElapsed = 0;
+    table.serviceElapsed = 0;
+    table.enjoyElapsed = 0;
+
+    if (customers.length === 0) {
       if (table.status !== "empty") {
         table.status = "empty";
       }
-      table.customerId = null;
-      table.waitElapsed = 0;
-      table.serviceElapsed = 0;
-      table.enjoyElapsed = 0;
       continue;
     }
 
-    table.customerId = customer.id;
-
-    if (customer.phase === "walking_to_table") {
-      table.status = "reserved";
-      table.waitElapsed = 0;
-      table.serviceElapsed = 0;
-      table.enjoyElapsed = 0;
-      continue;
-    }
-
-    if (customer.phase === "waiting") {
+    if (waitingCustomer) {
       table.status = "waiting";
-      table.waitElapsed = customer.waitElapsed;
+      table.customerId = waitingCustomer.id;
+      table.waitElapsed = waitingCustomer.waitElapsed;
       continue;
     }
 
-    if (customer.phase === "being_served") {
+    if (servingCustomer) {
       table.status = "serving";
-      table.serviceElapsed = customer.serveElapsed;
+      table.customerId = servingCustomer.id;
+      table.serviceElapsed = servingCustomer.serveElapsed;
       continue;
     }
 
-    if (customer.phase === "enjoying") {
+    if (enjoyingCustomer) {
       table.status = "enjoying";
-      table.enjoyElapsed = customer.enjoyElapsed;
+      table.customerId = enjoyingCustomer.id;
+      table.enjoyElapsed = enjoyingCustomer.enjoyElapsed;
       continue;
     }
 
-    if (customer.phase === "walking_out") {
-      table.status = "empty";
-      table.customerId = null;
-      table.waitElapsed = 0;
-      table.serviceElapsed = 0;
-      table.enjoyElapsed = 0;
-    }
+    table.status = "reserved";
   }
 }
 
 function spawnCustomer() {
-  const freeTable = findFreeTableLayout();
-  if (!freeTable) {
+  const openSeat = findOpenTableSeat();
+  if (!openSeat) {
     return false;
   }
 
@@ -829,18 +842,20 @@ function spawnCustomer() {
 
   const customerId = gameState.nextCustomerId;
   gameState.nextCustomerId += 1;
+  const seat = getSeatPosition(openSeat.layout, openSeat.seatIndex);
 
   const customer = {
     id: customerId,
     type: customerType.id,
     phase: "walking_to_table",
     rainUmbrella: false,
+    seatIndex: openSeat.seatIndex,
     x: DOOR_OUTSIDE_X,
     y: DOOR_OUTSIDE_Y,
-    targetX: freeTable.seatX,
-    targetY: freeTable.seatY,
-    waypoints: buildEntryWaypoints(freeTable),
-    tableId: freeTable.id,
+    targetX: seat.x,
+    targetY: seat.y,
+    waypoints: buildEntryWaypoints(openSeat.layout, openSeat.seatIndex),
+    tableId: openSeat.layout.id,
     speed: 140,
     waitElapsed: 0,
     serveElapsed: 0,
@@ -849,9 +864,10 @@ function spawnCustomer() {
     tipReward: 0,
   };
 
-  const table = getTableState(freeTable.id);
+  const table = getTableState(openSeat.layout.id);
   table.status = "reserved";
-  table.customerId = customerId;
+  table.customerIds = [...table.customerIds, customerId].slice(0, TABLE_CAPACITY);
+  table.customerId = table.customerIds[0] ?? customerId;
   table.lastOutcome = null;
   gameState.customers.push(customer);
   return true;
@@ -866,16 +882,12 @@ function beginExit(customer, table) {
   customer.waypoints = tableLayout ? buildExitWaypoints(tableLayout) : [];
   customer.serveElapsed = 0;
   customer.enjoyElapsed = 0;
-  table.status = "empty";
-  table.customerId = null;
-  table.waitElapsed = 0;
-  table.serviceElapsed = 0;
-  table.enjoyElapsed = 0;
 }
 
 function finishService(customer, table) {
   const waitTime = customer.waitElapsed;
   const tableLayout = getTableLayout(customer.tableId);
+  const seat = tableLayout ? getSeatPosition(tableLayout, customer.seatIndex) : null;
   let scoreGain = 0;
   let tipGain = 0;
 
@@ -899,10 +911,10 @@ function finishService(customer, table) {
   table.lastOutcome = tipGain > 0 ? "tipped" : "served";
   runtime.audio.beep(tipGain > 0 ? "tip" : "serve");
 
-  if (tableLayout) {
+  if (seat && tableLayout) {
     spawnFloatingText({
       text: tipGain > 0 ? `+${1 + tipGain} coins / +${1 + scoreGain} pts` : `+1 coin / +${1 + scoreGain} pts`,
-      x: tableLayout.seatX,
+      x: seat.x,
       y: tableLayout.y - 14,
       color: tipGain > 0 ? "#fff2a8" : "#dcffe1",
     });
@@ -947,44 +959,50 @@ function handleCanvasPointer(event) {
     return;
   }
 
-  const customer = gameState.customers.find((entry) => entry.id === table.customerId);
-  if (tryPlaceRainUmbrella(tableLayout, customer)) {
-    return;
-  }
+  const waitingCustomer = getPriorityTableCustomer(tableLayout.id, "waiting");
+  if (!waitingCustomer) {
+    if (tryPlaceRainUmbrella(tableLayout, getOccupyingTableCustomers(tableLayout.id))) {
+      return;
+    }
 
-  if (table.status !== "waiting") {
     showToast("That table is not ready to serve.");
     return;
   }
 
-  if (!customer) {
-    return;
-  }
-
-  customer.phase = "being_served";
-  customer.serveElapsed = 0;
+  waitingCustomer.phase = "being_served";
+  waitingCustomer.serveElapsed = 0;
   table.status = "serving";
   table.serviceElapsed = 0;
   runtime.audio.beep("tap");
 }
 
-function tryPlaceRainUmbrella(tableLayout, customer) {
-  if (
-    gameState.weatherState !== "rain" ||
-    !customer ||
-    !["being_served", "enjoying"].includes(customer.phase)
-  ) {
+function tryPlaceRainUmbrella(tableLayout, customers) {
+  if (gameState.weatherState !== "rain" || !Array.isArray(customers) || customers.length === 0) {
     return false;
   }
 
-  if (customer.rainUmbrella) {
+  const umbrellaEligibleCustomers = customers.filter((customer) =>
+    ["being_served", "enjoying"].includes(customer.phase),
+  );
+  if (umbrellaEligibleCustomers.length === 0) {
+    return false;
+  }
+
+  const uncoveredCustomers = umbrellaEligibleCustomers.filter((customer) => !customer.rainUmbrella);
+  if (uncoveredCustomers.length === 0) {
     showToast("That table already has rain cover.");
     return true;
   }
 
-  customer.rainUmbrella = true;
+  uncoveredCustomers.forEach((customer) => {
+    customer.rainUmbrella = true;
+  });
   runtime.audio.beep("upgrade");
-  showToast(`${customerLabel(customer.type)} is covered from the rain.`);
+  showToast(
+    uncoveredCustomers.length > 1
+      ? `The customers at T${tableLayout.index + 1} are covered from the rain.`
+      : `${customerLabel(uncoveredCustomers[0].type)} is covered from the rain.`,
+  );
   void persistGameState("umbrella");
   return true;
 }
@@ -1238,6 +1256,7 @@ function drawTables() {
     }
 
     drawTableStatusHalo(layout, table);
+    drawTableSeats(layout);
     drawTableLabel(layout);
     drawTableTimer(layout, table);
     drawServeHint(layout, table);
@@ -1271,6 +1290,35 @@ function drawTableLabel(layout) {
   ctx.fillStyle = "#3d2414";
   ctx.font = '700 16px "Trebuchet MS", sans-serif';
   ctx.fillText(`T${layout.index + 1}`, layout.x + 10, layout.y + 18);
+}
+
+function drawTableSeats(layout) {
+  const customers = getOccupyingTableCustomers(layout.id);
+  const seatStates = layout.seats.map((seat, seatIndex) => {
+    const customer = customers.find((entry) => entry.seatIndex === seatIndex) ?? null;
+    return {
+      seat,
+      customer,
+      waiting: customer?.phase === "waiting",
+    };
+  });
+
+  ctx.save();
+  for (const seatState of seatStates) {
+    ctx.beginPath();
+    ctx.ellipse(seatState.seat.x, seatState.seat.y + 2, 19, 7, 0, 0, Math.PI * 2);
+    ctx.fillStyle = seatState.customer ? "rgba(68, 42, 24, 0.42)" : "rgba(255, 245, 223, 0.26)";
+    ctx.fill();
+
+    if (seatState.waiting) {
+      ctx.beginPath();
+      ctx.ellipse(seatState.seat.x, seatState.seat.y + 1, 22, 9, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255, 246, 205, 0.72)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 function drawTableTimer(layout, table) {
@@ -1312,22 +1360,28 @@ function drawServeHint(layout, table) {
   if (table.status !== "waiting") {
     return;
   }
-
-  const centerX = layout.x + layout.width / 2;
-  const centerY = layout.y + layout.height / 2;
+  const waitingCustomers = getOccupyingTableCustomers(layout.id).filter(
+    (customer) => customer.phase === "waiting",
+  );
 
   ctx.save();
   ctx.strokeStyle = "rgba(255, 248, 214, 0.9)";
   ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, 12, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(centerX - 6, centerY);
-  ctx.lineTo(centerX + 6, centerY);
-  ctx.moveTo(centerX, centerY - 6);
-  ctx.lineTo(centerX, centerY + 6);
-  ctx.stroke();
+  for (const customer of waitingCustomers) {
+    const seat = getSeatPosition(layout, customer.seatIndex);
+    const centerX = seat.x;
+    const centerY = seat.y - 18;
+
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 12, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(centerX - 6, centerY);
+    ctx.lineTo(centerX + 6, centerY);
+    ctx.moveTo(centerX, centerY - 6);
+    ctx.lineTo(centerX, centerY + 6);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -1360,10 +1414,12 @@ function drawCustomers(timestamp) {
     }
 
     if (customer.phase === "waiting") {
+      const labelOffsetX = customer.seatIndex === 0 ? -18 : 18;
+      const labelOffsetY = customer.seatIndex === 0 ? -12 : -24;
       ctx.fillStyle = "#fff6de";
-      ctx.font = '700 12px "Trebuchet MS", sans-serif';
+      ctx.font = '700 11px "Trebuchet MS", sans-serif';
       ctx.textAlign = "center";
-      ctx.fillText(customerLabel(customer.type), customer.x, drawY - 4);
+      ctx.fillText(customerLabel(customer.type), customer.x + labelOffsetX, drawY + labelOffsetY);
     }
 
     if (shouldDrawRainUmbrella(customer)) {
@@ -1708,17 +1764,98 @@ function getTableState(id) {
   return gameState.tables.find((table) => table.id === id) ?? null;
 }
 
-function findFreeTableLayout() {
-  const freeTables = TABLE_LAYOUT.filter((layout) => {
-    const table = getTableState(layout.id);
-    return table && table.status === "empty";
+function getSeatPosition(tableLayout, seatIndex = 0) {
+  return tableLayout.seats[normalizeSeatIndex(seatIndex, tableLayout)] ?? tableLayout.seats[0];
+}
+
+function normalizeSeatIndex(value, tableLayout, fallbackX = null) {
+  const parsedValue = asNumber(value, NaN);
+  if (Number.isInteger(parsedValue) && parsedValue >= 0 && parsedValue < tableLayout.seats.length) {
+    return parsedValue;
+  }
+
+  if (Number.isFinite(Number(fallbackX))) {
+    let nearestIndex = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+
+    tableLayout.seats.forEach((seat, seatIndex) => {
+      const distance = Math.abs(Number(fallbackX) - seat.x);
+      if (distance < nearestDistance) {
+        nearestIndex = seatIndex;
+        nearestDistance = distance;
+      }
+    });
+
+    return nearestIndex;
+  }
+
+  return 0;
+}
+
+function getTableCustomers(tableId) {
+  return gameState.customers
+    .filter((customer) => customer.tableId === tableId)
+    .sort((left, right) => left.seatIndex - right.seatIndex);
+}
+
+function getOccupyingTableCustomers(tableId) {
+  return getTableCustomers(tableId).filter((customer) => customer.phase !== "walking_out");
+}
+
+function getOpenSeatIndex(tableId) {
+  const occupiedSeats = new Set(
+    getOccupyingTableCustomers(tableId).map((customer) => customer.seatIndex),
+  );
+
+  for (let seatIndex = 0; seatIndex < TABLE_CAPACITY; seatIndex += 1) {
+    if (!occupiedSeats.has(seatIndex)) {
+      return seatIndex;
+    }
+  }
+
+  return null;
+}
+
+function findOpenTableSeat() {
+  const openSeats = TABLE_LAYOUT.flatMap((layout) => {
+    const seatIndex = getOpenSeatIndex(layout.id);
+    return seatIndex === null ? [] : [{ layout, seatIndex }];
   });
 
-  if (freeTables.length === 0) {
+  if (openSeats.length === 0) {
     return null;
   }
 
-  return freeTables[Math.floor(Math.random() * freeTables.length)];
+  return openSeats[Math.floor(Math.random() * openSeats.length)];
+}
+
+function getPriorityTableCustomer(tableId, phases) {
+  const wantedPhases = Array.isArray(phases) ? phases : [phases];
+  const matchingCustomers = getOccupyingTableCustomers(tableId).filter(
+    (customer) => wantedPhases.includes(customer.phase),
+  );
+
+  if (matchingCustomers.length === 0) {
+    return null;
+  }
+
+  if (wantedPhases.includes("waiting")) {
+    return matchingCustomers.sort((left, right) => {
+      if (right.waitElapsed !== left.waitElapsed) {
+        return right.waitElapsed - left.waitElapsed;
+      }
+
+      return left.seatIndex - right.seatIndex;
+    })[0];
+  }
+
+  return matchingCustomers.sort((left, right) => {
+    if (left.seatIndex !== right.seatIndex) {
+      return left.seatIndex - right.seatIndex;
+    }
+
+    return left.id - right.id;
+  })[0];
 }
 
 function findAvailableCustomerType() {
@@ -1729,7 +1866,36 @@ function findAvailableCustomerType() {
     return null;
   }
 
-  return availableTypes[Math.floor(Math.random() * availableTypes.length)];
+  return pickWeightedCustomerType(availableTypes);
+}
+
+function pickWeightedCustomerType(customerTypes) {
+  const totalWeight = customerTypes.reduce(
+    (sum, customerType) => sum + customerSpawnWeight(customerType),
+    0,
+  );
+
+  if (totalWeight <= 0) {
+    return customerTypes[0] ?? null;
+  }
+
+  let roll = Math.random() * totalWeight;
+  for (const customerType of customerTypes) {
+    roll -= customerSpawnWeight(customerType);
+    if (roll <= 0) {
+      return customerType;
+    }
+  }
+
+  return customerTypes[customerTypes.length - 1] ?? null;
+}
+
+function customerSpawnWeight(customerType) {
+  return isRareAccessoryCustomerType(customerType.id) ? RARE_ACCESSORY_WEIGHT : 1;
+}
+
+function isRareAccessoryCustomerType(customerTypeId) {
+  return customerTypeId.includes("_helmet_") || customerTypeId.includes("_mask_");
 }
 
 function getShiftPhaseInfo(elapsed = gameState.levelElapsed) {
@@ -1846,12 +2012,13 @@ function parseSaveSource(primaryRaw, backupRaw) {
   return null;
 }
 
-function buildEntryWaypoints(tableLayout) {
+function buildEntryWaypoints(tableLayout, seatIndex = 0) {
+  const seat = getSeatPosition(tableLayout, seatIndex);
   return [
     { x: DOOR_INSIDE_X, y: DOOR_INSIDE_Y },
     { x: AISLE_X, y: tableLayout.approachY },
     { x: tableLayout.approachX, y: tableLayout.approachY },
-    { x: tableLayout.seatX, y: tableLayout.seatY },
+    { x: seat.x, y: seat.y },
   ];
 }
 
@@ -1864,13 +2031,13 @@ function buildExitWaypoints(tableLayout) {
   ];
 }
 
-function normalizeWaypoints(waypoints, tableLayout, phase) {
+function normalizeWaypoints(waypoints, tableLayout, phase, seatIndex = 0) {
   if (phase === "walking_out") {
     return buildExitWaypoints(tableLayout);
   }
 
   if (phase === "walking_to_table") {
-    return buildEntryWaypoints(tableLayout);
+    return buildEntryWaypoints(tableLayout, seatIndex);
   }
 
   if (Array.isArray(waypoints) && waypoints.length > 0) {
@@ -1962,6 +2129,10 @@ function exposeDebugState() {
         weatherState: gameState.weatherState,
         weatherRemaining: gameState.weatherRemaining,
         layout: structuredClone(TABLE_LAYOUT),
+        customerCatalog: CUSTOMER_TYPES.map((customerType) => ({
+          id: customerType.id,
+          spawnWeight: customerSpawnWeight(customerType),
+        })),
       };
     },
   };
