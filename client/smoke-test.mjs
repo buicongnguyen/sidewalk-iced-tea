@@ -93,6 +93,8 @@ async function runSmoke(serverUrl) {
   });
 
   try {
+    const errors = [];
+    page.on("pageerror", error => errors.push(error.message));
     await page.goto(serverUrl, { waitUntil: "networkidle" });
     await page.waitForSelector("#title-overlay", { state: "visible" });
     await page.evaluate(async () => {
@@ -140,6 +142,9 @@ async function runSmoke(serverUrl) {
     );
 
     const finalState = await page.evaluate(() => window.__planBGame.getSnapshot());
+    if (finalState.documentLanguage !== "vi") throw new Error("Vietnamese must be default");
+    if (!finalState.customers.every(customer => customer.orderText)) throw new Error("Missing dialogue");
+    if (errors.length) throw new Error(errors.join("\n"));
     await page.waitForTimeout(300);
     const saveHasSessionStartedAt = await page.evaluate(async () => {
       const readSavedGame = await new Promise((resolve, reject) => {
@@ -183,6 +188,8 @@ async function runSmoke(serverUrl) {
 }
 
 async function verifyMissingAsset(serverUrl) {
+  const malformed = await fetch(new URL("/%E0%A4%A", serverUrl));
+  if (malformed.status !== 400) throw new Error("Malformed URL must return 400");
   const missingAssetUrl = new URL(
     "./public/assets/placeholder/does-not-exist.svg",
     serverUrl,

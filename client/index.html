@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="vi">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
     <meta name="theme-color" content="#d16f49" />
-    <title>Sidewalk Iced Tea - Plan B</title>
+    <title>Trà Đá Vỉa Hè - Plan B</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/icons/app-icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./app.css" />
@@ -24,19 +24,19 @@
                 alt=""
               />
               <span id="coins-value">0</span>
-              <small>coins</small>
+              <small>xu</small>
             </div>
             <div class="status-chip">
               <span id="score-value">0</span>
-              <small>score</small>
+              <small>điểm</small>
             </div>
             <div class="status-chip">
               <span id="served-value">0</span>
-              <small>served</small>
+              <small>đã bán</small>
             </div>
             <div class="status-chip">
               <span id="tips-value">0</span>
-              <small>tips</small>
+              <small>boa</small>
             </div>
             <div class="status-chip status-chip--weather">
               <img
@@ -44,7 +44,7 @@
                 src="./public/assets/final/icon-rain.png"
                 alt=""
               />
-              <span id="weather-value">clear</span>
+              <span id="weather-value">nắng ráo</span>
             </div>
           </div>
 
@@ -53,34 +53,35 @@
               id="game-canvas"
               width="960"
               height="540"
-              aria-label="Playable tea shop prototype"
+              aria-label="Trò chơi quán trà đá có thể chơi được"
             ></canvas>
+            <p id="order-caption" class="order-caption"></p>
 
             <div id="title-overlay" class="overlay">
               <div class="overlay-card">
-                <p class="eyebrow">Plan B Web Prototype</p>
-                <h1>Sidewalk Iced Tea</h1>
+                <p class="eyebrow">Bản web Plan B</p>
+                <h1>Trà Đá Vỉa Hè</h1>
                 <p id="overlay-copy">
-                  Tap tables before the timers run out. Fast service earns
-                  better score and tips.
+                  Chạm vào bàn trước khi hết giờ chờ. Khách sẽ gọi món bằng
+                  tiếng Việt và ngồi vào bàn trước khi rời quán.
                 </p>
                 <div class="overlay-actions">
                   <button id="start-button" class="primary-button" type="button">
-                    Open Stall
+                    Mở quán
                   </button>
                   <button
                     id="install-button"
                     class="secondary-button hidden"
                     type="button"
                   >
-                    Install
+                    Cài ứng dụng
                   </button>
                 </div>
               </div>
             </div>
 
             <div id="offline-badge" class="mode-badge hidden">
-              Offline local mode
+              Chế độ ngoại tuyến
             </div>
             <div id="toast" class="toast hidden" aria-live="polite"></div>
           </div>
@@ -88,39 +89,39 @@
           <div class="control-panel">
             <div class="meta-row">
               <div class="meta-pill">
-                <span class="meta-label">Tables</span>
+                <span class="meta-label">Bàn</span>
                 <span id="tables-value">0 / 8</span>
               </div>
               <div class="meta-pill">
-                <span class="meta-label">Flow</span>
-                <span id="flow-value">0 served / 0 missed</span>
+                <span class="meta-label">Mục tiêu</span>
+                <span id="flow-value">0 phục vụ / 0 lỡ</span>
               </div>
               <div class="meta-pill">
-                <span class="meta-label">Local Save</span>
-                <span id="save-value">booting</span>
+                <span class="meta-label">Lưu máy</span>
+                <span id="save-value">đang mở</span>
               </div>
               <div class="meta-pill">
-                <span id="shift-label" class="meta-label">Day 1</span>
-                <span id="shift-value" class="meta-value">Morning 0:45</span>
+                <span id="shift-label" class="meta-label">Ngày 1</span>
+                <span id="shift-value" class="meta-value">Sáng 0:45</span>
               </div>
             </div>
 
             <div class="action-grid">
               <button id="upgrade-serve" class="action-button" type="button">
-                Faster Serve
-                <small>10 coins</small>
+                Pha nhanh
+                <small>10 xu</small>
               </button>
               <button id="upgrade-umbrella" class="action-button" type="button">
-                Umbrella
-                <small>20 coins</small>
+                Ô che
+                <small>20 xu</small>
               </button>
               <button id="pause-button" class="action-button" type="button">
-                Pause
-                <small>freeze the stall</small>
+                Tạm dừng
+                <small>ngưng phục vụ</small>
               </button>
               <button id="reset-button" class="action-button danger-button" type="button">
-                Reset Save
-                <small>start from zero</small>
+                Xóa dữ liệu
+                <small>làm lại từ đầu</small>
               </button>
             </div>
           </div>

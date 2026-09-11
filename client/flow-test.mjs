@@ -185,6 +185,23 @@ try {
       await page.context().close();
     });
 
+    await runFlow(results, "daily target bonus persists once", async () => {
+      const page = await newPage(browser, makeBaseSave({ levelElapsed: LEVEL_DURATION - 0.2, levelServed: 8, coins: 10 }));
+      await page.goto(serverUrl, { waitUntil: "networkidle" });
+      await waitForApp(page);
+      await page.click("#start-button");
+      await page.waitForFunction(() => window.__planBGame.getSnapshot().saveStatus === "day-complete");
+      let snapshot = await getSnapshot(page);
+      expectEqual(snapshot.coins, 15, "target grants five coins");
+      expectEqual(snapshot.lastLevelSummary.bonus, 5, "summary stores bonus");
+      await page.reload({ waitUntil: "networkidle" });
+      await waitForApp(page);
+      snapshot = await getSnapshot(page);
+      expectEqual(snapshot.coins, 15, "reload must not grant bonus again");
+      expectEqual(snapshot.lastLevelSummary.bonus, 5, "bonus survives reload");
+      await page.context().close();
+    });
+
     await runFlow(results, "rain state stays playable", async () => {
       const rainySave = makeWaitingSave({ waitElapsed: 1 });
       rainySave.weatherState = "rain";

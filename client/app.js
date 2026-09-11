@@ -9,6 +9,7 @@ const FIXED_STEP = 0.1;
 const MAX_CATCH_UP_SECONDS = 30;
 const MAX_IDLE_SECONDS = 600;
 const IDLE_EFFICIENCY = 0.25;
+const DEFAULT_LANGUAGE = "vi";
 const MAX_WAIT_SECONDS = 18;
 const BASE_SERVE_TIME = 2.5;
 const FAST_SERVE_TIME = 1.5;
@@ -18,9 +19,9 @@ const WEATHER_WINDOW = [45, 75];
 const RAIN_DURATION = 20;
 const SHIFT_PHASE_DURATION = 45;
 const SHIFT_PHASES = [
-  { id: "morning", label: "Morning" },
-  { id: "afternoon", label: "Afternoon" },
-  { id: "evening", label: "Evening" },
+  { id: "morning", label: "Morning", labelVi: "Sáng" },
+  { id: "afternoon", label: "Afternoon", labelVi: "Chiều" },
+  { id: "evening", label: "Evening", labelVi: "Tối" },
 ];
 const LEVEL_DURATION = SHIFT_PHASE_DURATION * SHIFT_PHASES.length;
 const TABLE_CAPACITY = 2;
@@ -74,6 +75,37 @@ const CUSTOMER_TYPES = [
   { id: "asian_young_boy_mask_green", assetId: "customer_asian_young_boy_mask_green", label: "Green mask boy" },
   { id: "asian_young_girl_mask_pink", assetId: "customer_asian_young_girl_mask_pink", label: "Pink mask girl" },
 ];
+
+const CUSTOMER_ORDER_LIBRARY = {
+  adult: [
+    "Cho mình một ly trà nha.",
+    "Cho mình xin một ly trà nhé.",
+    "Làm giúp mình một ly trà mát nha.",
+    "Cho mình ly trà ít ngọt nhé.",
+  ],
+  older_man: [
+    "Cho chú một ly trà nhé.",
+    "Cho chú xin ly trà đá nha.",
+    "Cho chú một ly trà ít ngọt nhé.",
+  ],
+  older_woman: [
+    "Cho cô một ly trà nhé.",
+    "Cho cô xin ly trà mát nha.",
+    "Cho cô một ly trà ít đá nhé.",
+  ],
+  young_boy: [
+    "Cho cháu xin một ly trà ạ.",
+    "Cho cháu một ly trà mát nhé.",
+    "Cho cháu ly trà ít ngọt nha.",
+  ],
+  young_girl: [
+    "Cho cháu xin một ly trà ạ.",
+    "Cho cháu một ly trà mát nha.",
+    "Cho cháu ly trà ít đá nhé.",
+  ],
+};
+
+document.documentElement.lang = DEFAULT_LANGUAGE;
 
 const BASE_ASSET_PATHS = {
   bg_room: "./public/assets/final/bg-room.png",
@@ -142,7 +174,7 @@ let gameState = createDefaultState();
 
 init().catch((error) => {
   console.error(error);
-  showToast("Prototype boot failed. Refresh to try again.");
+  showToast("Mở game chưa xong, tải lại giúp mình nhé.");
 });
 
 async function init() {
@@ -185,7 +217,7 @@ function bindEvents() {
   window.addEventListener("appinstalled", () => {
     runtime.installPrompt = null;
     ui.installButton.classList.add("hidden");
-    showToast("Installed. You can reopen it like an app now.");
+    showToast("Cài xong rồi, giờ có thể mở như ứng dụng.");
   });
 }
 
@@ -381,6 +413,7 @@ function normalizeCustomer(customer) {
     waitElapsed: asNumber(customer.waitElapsed, 0),
     serveElapsed: asNumber(customer.serveElapsed, 0),
     enjoyElapsed: asNumber(customer.enjoyElapsed, 0),
+    orderText: normalizeOrderText(customer.orderText, customerType.id),
     rewardGranted: Boolean(customer.rewardGranted),
     tipReward: asNumber(customer.tipReward, 0),
   };
@@ -594,7 +627,12 @@ function updateShift(deltaSeconds) {
 }
 
 function completeLevel() {
+  if (gameState.levelComplete) return;
+  const bonus = gameState.levelServed >= dailyTarget() ? 5 : 0;
+  gameState.coins += bonus;
+  gameState.levelCoinsEarned += bonus;
   const summary = {
+    bonus,
     dayNumber: gameState.dayNumber,
     served: gameState.levelServed,
     missed: gameState.levelMissed,
@@ -611,7 +649,7 @@ function completeLevel() {
   runtime.lastFrame = 0;
   runtime.accumulator = 0;
   runtime.autoSaveTimer = 0;
-  showToast(`Day ${summary.dayNumber} is done. Evening service is over.`);
+  showToast(`Ngày ${summary.dayNumber} đã kết thúc. Thưởng mục tiêu: ${bonus} xu.`);
   updateOverlay();
   updateHud();
   void persistGameState("day-complete");
@@ -630,7 +668,7 @@ function startNextLevel() {
   gameState.audioUnlocked = true;
   runtime.audio.unlock();
   ui.titleOverlay.classList.add("hidden");
-  showToast(`Day ${gameState.dayNumber} starts in the morning.`);
+  showToast(`Bắt đầu buổi sáng ngày ${gameState.dayNumber}.`);
   updateOverlay();
   updateHud();
   void persistGameState(gameState.dayNumber === 1 ? "start" : "next-day");
@@ -672,7 +710,7 @@ function updateWeather(deltaSeconds) {
     if (gameState.weatherRemaining <= 0) {
       gameState.weatherState = "clear";
       gameState.nextWeatherRollIn = randomInRange(...WEATHER_WINDOW);
-      showToast("Rain cleared. The street is busy again.");
+      showToast("Hết mưa rồi, khách lại đông hơn.");
     }
     return;
   }
@@ -683,7 +721,7 @@ function updateWeather(deltaSeconds) {
     gameState.weatherRemaining = RAIN_DURATION;
     gameState.nextWeatherRollIn = randomInRange(...WEATHER_WINDOW);
     runtime.audio.beep("rain");
-    showToast(gameState.umbrellaOwned ? "Light rain. Umbrella is helping." : "Rain cut the foot traffic.");
+    showToast(gameState.umbrellaOwned ? "Mưa nhẹ thôi, ô che vẫn ổn." : "Mưa làm khách thưa đi một chút.");
   }
 }
 
@@ -744,7 +782,7 @@ function updateCustomers(deltaSeconds) {
           y: tableLayout.y - 10,
           color: "#ffd5d5",
         });
-        showToast(`${customerLabel(customer.type)} left after waiting too long.`);
+        showToast(`${customerLabel(customer.type)} chờ lâu quá nên đi mất rồi.`);
         void persistGameState("missed");
       }
       continue;
@@ -861,6 +899,7 @@ function spawnCustomer() {
     waitElapsed: 0,
     serveElapsed: 0,
     enjoyElapsed: 0,
+    orderText: buildCustomerOrderText(customerType.id),
     rewardGranted: false,
     tipReward: 0,
   };
@@ -886,6 +925,7 @@ function beginExit(customer, table) {
 }
 
 function finishService(customer, table) {
+  if (customer.rewardGranted) return;
   const waitTime = customer.waitElapsed;
   const tableLayout = getTableLayout(customer.tableId);
   const seat = tableLayout ? getSeatPosition(tableLayout, customer.seatIndex) : null;
@@ -914,7 +954,7 @@ function finishService(customer, table) {
 
   if (seat && tableLayout) {
     spawnFloatingText({
-      text: tipGain > 0 ? `+${1 + tipGain} coins / +${1 + scoreGain} pts` : `+1 coin / +${1 + scoreGain} pts`,
+      text: tipGain > 0 ? `+${1 + tipGain} xu / +${1 + scoreGain} điểm` : `+1 xu / +${1 + scoreGain} điểm`,
       x: seat.x,
       y: tableLayout.y - 14,
       color: tipGain > 0 ? "#fff2a8" : "#dcffe1",
@@ -923,8 +963,8 @@ function finishService(customer, table) {
 
   const toastMessage =
     tipGain > 0
-      ? `${customerLabel(customer.type)} tipped you for quick service.`
-      : `${customerLabel(customer.type)} got served.`;
+      ? `${customerLabel(customer.type)} vui vẻ nên boa thêm cho quán.`
+      : `${customerLabel(customer.type)} đã nhận trà rồi.`;
   showToast(toastMessage);
   void persistGameState("served");
 }
@@ -966,7 +1006,7 @@ function handleCanvasPointer(event) {
       return;
     }
 
-    showToast("That table is not ready to serve.");
+    showToast("Bàn này chưa sẵn để phục vụ.");
     return;
   }
 
@@ -991,7 +1031,7 @@ function tryPlaceRainUmbrella(tableLayout, customers) {
 
   const uncoveredCustomers = umbrellaEligibleCustomers.filter((customer) => !customer.rainUmbrella);
   if (uncoveredCustomers.length === 0) {
-    showToast("That table already has rain cover.");
+    showToast("Bàn này đã có ô che mưa rồi.");
     return true;
   }
 
@@ -1001,8 +1041,8 @@ function tryPlaceRainUmbrella(tableLayout, customers) {
   runtime.audio.beep("upgrade");
   showToast(
     uncoveredCustomers.length > 1
-      ? `The customers at T${tableLayout.index + 1} are covered from the rain.`
-      : `${customerLabel(uncoveredCustomers[0].type)} is covered from the rain.`,
+      ? `Khách ở bàn T${tableLayout.index + 1} đã được che mưa.`
+      : `${customerLabel(uncoveredCustomers[0].type)} đã được che mưa.`,
   );
   void persistGameState("umbrella");
   return true;
@@ -1032,7 +1072,7 @@ function handleStartButton() {
     runtime.mode = "playing";
     runtime.lastFrame = 0;
     ui.titleOverlay.classList.add("hidden");
-    showToast("Back to service.");
+    showToast("Bán tiếp thôi.");
     updateOverlay();
     updateHud();
     return;
@@ -1073,19 +1113,19 @@ function buyUpgrade(kind) {
 
   if (kind === "faster_serve") {
     if (gameState.serveLevel > 0) {
-      showToast("Faster Serve is already active.");
+      showToast("Đã mua Pha nhanh rồi.");
       return;
     }
 
     if (gameState.coins < 10) {
-      showToast("Need 10 coins for Faster Serve.");
+      showToast("Cần 10 xu để mua Pha nhanh.");
       return;
     }
 
     gameState.coins -= 10;
     gameState.serveLevel = 1;
     runtime.audio.beep("upgrade");
-    showToast("Faster Serve unlocked.");
+    showToast("Đã mở Pha nhanh.");
     void persistGameState("upgrade");
     updateHud();
     return;
@@ -1093,19 +1133,19 @@ function buyUpgrade(kind) {
 
   if (kind === "umbrella") {
     if (gameState.umbrellaOwned) {
-      showToast("Umbrella is already covering the stall.");
+      showToast("Quán đã có ô che rồi.");
       return;
     }
 
     if (gameState.coins < 20) {
-      showToast("Need 20 coins for the umbrella.");
+      showToast("Cần 20 xu để mua ô che.");
       return;
     }
 
     gameState.coins -= 20;
     gameState.umbrellaOwned = true;
     runtime.audio.beep("upgrade");
-    showToast("Umbrella unlocked. Rain hurts less now.");
+    showToast("Ô che đã sẵn sàng. Mưa sẽ đỡ ảnh hưởng hơn.");
     void persistGameState("upgrade");
     updateHud();
   }
@@ -1120,11 +1160,11 @@ function togglePause() {
     runtime.mode = "playing";
     runtime.lastFrame = 0;
     ui.titleOverlay.classList.add("hidden");
-    showToast("Back to service.");
+    showToast("Bán tiếp thôi.");
   } else {
     runtime.mode = "paused";
     updateOverlay();
-    showToast("Stall paused.");
+    showToast("Tạm nghỉ một chút.");
   }
 
   updateOverlay();
@@ -1132,7 +1172,7 @@ function togglePause() {
 }
 
 async function resetSave() {
-  const confirmed = window.confirm("Reset the local save for this tea stall?");
+  const confirmed = window.confirm("Xóa dữ liệu lưu cục bộ của quán này nhé?");
   if (!confirmed) {
     return;
   }
@@ -1144,7 +1184,7 @@ async function resetSave() {
   updateOverlay();
   updateHud();
   await persistGameState("reset");
-  showToast("Save reset. Your stall is fresh again.");
+  showToast("Đã xóa dữ liệu. Quán quay về từ đầu rồi.");
 }
 
 async function handleVisibilityChange() {
@@ -1196,7 +1236,7 @@ function applyResumeSimulation(elapsedSeconds) {
     if (estimatedCoins > 0) {
       gameState.coins += estimatedCoins;
       gameState.score += estimatedCoins;
-      showToast(`Idle catch-up: +${estimatedCoins} coins.`);
+      showToast(`Cộng dồn lúc vắng: +${estimatedCoins} xu.`);
     }
   }
 
@@ -1417,13 +1457,15 @@ function drawCustomers(timestamp) {
       ctx.fillRect(drawX + 12, drawY + 30, 32, 24);
     }
 
-    if (customer.phase === "waiting") {
-      const labelOffsetX = customer.seatIndex === 0 ? -18 : 18;
-      const labelOffsetY = customer.seatIndex === 0 ? -12 : -24;
-      ctx.fillStyle = "#fff6de";
-      ctx.font = '700 11px "Trebuchet MS", sans-serif';
-      ctx.textAlign = "center";
-      ctx.fillText(customerLabel(customer.type), customer.x + labelOffsetX, drawY + labelOffsetY);
+    if (customer === getPriorityTableCustomer(customer.tableId, ["waiting", "being_served"])) {
+      const bubbleOffsetX = customer.seatIndex === 0 ? -20 : 22;
+      const bubbleOffsetY = customer.seatIndex === 0 ? -30 : -44;
+      drawOrderBubble(
+        customer.x + bubbleOffsetX,
+        drawY + bubbleOffsetY,
+        customer.orderText,
+        customer.phase === "being_served" ? "Đang pha" : "Gọi món",
+      );
     }
 
     if (shouldDrawRainUmbrella(customer)) {
@@ -1751,9 +1793,9 @@ function drawPauseHint() {
   ctx.fillStyle = "#fff7ea";
   ctx.textAlign = "center";
   ctx.font = '700 36px "Trebuchet MS", sans-serif';
-  ctx.fillText("Paused", BOARD_WIDTH / 2, BOARD_HEIGHT / 2);
+  ctx.fillText("Tạm dừng", BOARD_WIDTH / 2, BOARD_HEIGHT / 2);
   ctx.font = '600 18px "Trebuchet MS", sans-serif';
-  ctx.fillText("Tap Resume to reopen the stall.", BOARD_WIDTH / 2, BOARD_HEIGHT / 2 + 32);
+  ctx.fillText("Nhấn Bán tiếp để mở quán lại.", BOARD_WIDTH / 2, BOARD_HEIGHT / 2 + 32);
   ctx.restore();
 }
 
@@ -1764,6 +1806,10 @@ function renderToast() {
 }
 
 function updateHud() {
+  const waiting = gameState.customers.filter(customer => customer.phase === "waiting")
+    .sort((a, b) => b.waitElapsed - a.waitElapsed)[0];
+  document.getElementById("order-caption").textContent = waiting
+    ? `Bàn ${getTableLayout(waiting.tableId).index + 1}: ${waiting.orderText}` : "";
   const busyTables = gameState.tables.filter((table) => table.status !== "empty").length;
   const shiftPhase = getShiftPhaseInfo(gameState.levelElapsed);
 
@@ -1773,31 +1819,31 @@ function updateHud() {
   ui.tipsValue.textContent = String(gameState.tipCoins);
   ui.weatherValue.textContent =
     gameState.weatherState === "rain"
-      ? `rain ${Math.ceil(gameState.weatherRemaining)}s`
-      : "clear";
+      ? `mưa ${Math.ceil(gameState.weatherRemaining)}s`
+      : "nắng ráo";
   ui.tablesValue.textContent = `${busyTables} / ${TABLE_LAYOUT.length}`;
-  ui.flowValue.textContent = `${gameState.totalServed} served / ${gameState.totalMissed} missed`;
-  ui.saveValue.textContent = runtime.saveStatus;
-  ui.shiftLabel.textContent = `Day ${gameState.dayNumber}`;
+  ui.flowValue.textContent = `${gameState.levelServed}/${dailyTarget()} khách (+5 xu)`;
+  ui.saveValue.textContent = formatSaveStatus(runtime.saveStatus);
+  ui.shiftLabel.textContent = `Ngày ${gameState.dayNumber}`;
   ui.shiftValue.textContent = gameState.levelComplete
-    ? "Complete"
-    : `${shiftPhase.label} ${formatCountdown(shiftPhase.remainingInPhase)}`;
+    ? "Hoàn tất"
+    : `${shiftPhase.labelVi} ${formatCountdown(shiftPhase.remainingInPhase)}`;
   ui.pauseButton.innerHTML =
     runtime.mode === "paused"
-      ? 'Resume<small>back to service</small>'
-      : 'Pause<small>freeze the stall</small>';
+      ? 'Bán tiếp<small>quay lại phục vụ</small>'
+      : 'Tạm dừng<small>ngưng phục vụ</small>';
 
   ui.upgradeServe.disabled = gameState.serveLevel > 0 || gameState.coins < 10;
   ui.upgradeServe.innerHTML =
     gameState.serveLevel > 0
-      ? 'Faster Serve<small>bought</small>'
-      : 'Faster Serve<small>10 coins</small>';
+      ? 'Pha nhanh<small>đã mua</small>'
+      : 'Pha nhanh<small>10 xu</small>';
 
   ui.upgradeUmbrella.disabled = gameState.umbrellaOwned || gameState.coins < 20;
   ui.upgradeUmbrella.innerHTML =
     gameState.umbrellaOwned
-      ? 'Umbrella<small>bought</small>'
-      : 'Umbrella<small>20 coins</small>';
+      ? 'Ô che<small>đã mua</small>'
+      : 'Ô che<small>20 xu</small>';
 
   updateOverlay();
 }
@@ -1814,9 +1860,9 @@ function updateOverlay() {
     };
     const nextDay = gameState.dayNumber + 1;
     ui.titleOverlay.classList.remove("hidden");
-    ui.startButton.textContent = `Start Day ${nextDay}`;
+    ui.startButton.textContent = `Mở Ngày ${nextDay}`;
     ui.overlayCopy.textContent =
-      `Day ${summary.dayNumber} closed after evening. Served ${summary.served}, missed ${summary.missed}, earned ${summary.coinsEarned} coins. Tap to open morning on Day ${nextDay}.`;
+      `Ngày ${summary.dayNumber}: phục vụ ${summary.served}, lỡ ${summary.missed}, thu ${summary.coinsEarned} xu. Thưởng mục tiêu: ${summary.bonus ?? 0} xu.`;
     return;
   }
 
@@ -1824,20 +1870,20 @@ function updateOverlay() {
     ui.titleOverlay.classList.remove("hidden");
     ui.startButton.textContent =
       gameState.levelElapsed > 0 || gameState.totalServed > 0 || gameState.coins > 0
-        ? `Continue Day ${gameState.dayNumber}`
-        : `Open Day ${gameState.dayNumber}`;
+        ? `Tiếp tục Ngày ${gameState.dayNumber}`
+        : `Mở Ngày ${gameState.dayNumber}`;
     ui.overlayCopy.textContent =
       gameState.levelElapsed > 0
-        ? `Day ${gameState.dayNumber} is in ${shiftPhase.label.toLowerCase()}. ${formatCountdown(shiftPhase.remainingInLevel)} remain before the evening close.`
-        : "Each day runs from morning to afternoon to evening. Tap a table to serve before the timers and the shift clock run out.";
+        ? `Ngày ${gameState.dayNumber} đang ở buổi ${shiftPhase.labelVi.toLowerCase()}. Còn ${formatCountdown(shiftPhase.remainingInLevel)} trước khi khép ngày.`
+        : "Mỗi ngày sẽ đi từ sáng sang chiều rồi tới tối. Chạm vào bàn để phục vụ trước khi đồng hồ chờ và đồng hồ ca bán hết giờ.";
     return;
   }
 
   if (runtime.mode === "paused") {
     ui.titleOverlay.classList.remove("hidden");
-    ui.startButton.textContent = "Resume Shift";
+    ui.startButton.textContent = "Tiếp tục ca";
     ui.overlayCopy.textContent =
-      "Service is paused. Resume when you want customers moving again.";
+      "Quán đang tạm dừng. Khi sẵn sàng thì mở lại để khách tiếp tục vào bàn.";
     return;
   }
 
@@ -2071,14 +2117,14 @@ function getShiftPhaseInfo(elapsed = gameState.levelElapsed) {
 
 function getShiftPhaseToast(phase) {
   if (phase.id === "afternoon") {
-    return "Afternoon rush started. The light is brighter now.";
+    return "Qua buổi chiều rồi, ánh sáng sáng hơn một chút.";
   }
 
   if (phase.id === "evening") {
-    return "Evening settled in. The patio light is getting warmer.";
+    return "Sang buổi tối, ánh đèn bắt đầu ấm hơn.";
   }
 
-  return "Morning service started.";
+  return "Bắt đầu buổi sáng rồi.";
 }
 
 function currentServeTime() {
@@ -2135,6 +2181,7 @@ function normalizeLevelSummary(summary) {
   }
 
   return {
+    bonus: Math.max(0, asNumber(summary.bonus, 0)),
     dayNumber: Math.max(1, asNumber(summary.dayNumber, 1)),
     served: asNumber(summary.served, 0),
     missed: asNumber(summary.missed, 0),
@@ -2143,7 +2190,133 @@ function normalizeLevelSummary(summary) {
 }
 
 function customerLabel(type) {
-  return CUSTOMER_TYPES.find((entry) => entry.id === type)?.label ?? "Customer";
+  const customerType = CUSTOMER_TYPES.find((entry) => entry.id === type);
+  if (!customerType) {
+    return "Khách";
+  }
+
+  if (customerType.id.includes("old_man")) {
+    return "Chú khách";
+  }
+  if (customerType.id.includes("old_woman")) {
+    return "Cô khách";
+  }
+  if (customerType.id.includes("young_boy")) {
+    return "Bé trai";
+  }
+  if (customerType.id.includes("young_girl")) {
+    return "Bé gái";
+  }
+  if (customerType.id.includes("woman")) {
+    return "Khách nữ";
+  }
+
+  return "Khách nam";
+}
+
+function customerOrderProfile(type) {
+  if (type.includes("old_man")) {
+    return "older_man";
+  }
+  if (type.includes("old_woman")) {
+    return "older_woman";
+  }
+  if (type.includes("young_boy")) {
+    return "young_boy";
+  }
+  if (type.includes("young_girl")) {
+    return "young_girl";
+  }
+
+  return "adult";
+}
+
+function buildCustomerOrderText(type) {
+  const profile = customerOrderProfile(type);
+  const templates = CUSTOMER_ORDER_LIBRARY[profile] ?? CUSTOMER_ORDER_LIBRARY.adult;
+  return templates[Math.floor(Math.random() * templates.length)];
+}
+
+function normalizeOrderText(orderText, type) {
+  return typeof orderText === "string" && orderText.trim().length > 0
+    ? orderText.trim()
+    : buildCustomerOrderText(type);
+}
+
+function splitOrderText(orderText, maxChars = 18) {
+  if (typeof orderText !== "string" || orderText.trim().length === 0) {
+    return [];
+  }
+
+  const words = orderText.trim().split(/\s+/);
+  const lines = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const candidate = currentLine ? `${currentLine} ${word}` : word;
+    if (candidate.length <= maxChars || currentLine.length === 0) {
+      currentLine = candidate;
+      continue;
+    }
+
+    lines.push(currentLine);
+    currentLine = word;
+  }
+
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  if (lines.length <= 2) {
+    return lines;
+  }
+
+  return [lines[0], lines.slice(1).join(" ")];
+}
+
+function formatSaveStatus(status) {
+  switch (status) {
+    case "booting":
+      return "đang mở";
+    case "ready":
+      return "sẵn sàng";
+    case "loaded":
+      return "đã tải";
+    case "recovered":
+      return "đã khôi phục";
+    case "saved":
+      return "đã lưu";
+    case "fallback":
+      return "lưu dự phòng";
+    case "save error":
+      return "lỗi lưu";
+    case "start":
+      return "bắt đầu";
+    case "continue":
+      return "tiếp tục";
+    case "upgrade":
+      return "nâng cấp";
+    case "hidden":
+      return "ẩn nền";
+    case "resume":
+      return "trở lại";
+    case "pagehide":
+      return "rời trang";
+    case "reset":
+      return "đã xóa";
+    case "served":
+      return "đã bán";
+    case "missed":
+      return "lỡ khách";
+    case "umbrella":
+      return "che mưa";
+    case "next-day":
+      return "ngày mới";
+    case "day-complete":
+      return "hết ngày";
+    default:
+      return status;
+  }
 }
 
 function parseSaveSource(primaryRaw, backupRaw) {
@@ -2282,6 +2455,7 @@ function exposeDebugState() {
         levelRemaining: getShiftPhaseInfo(gameState.levelElapsed).remainingInLevel,
         weatherState: gameState.weatherState,
         weatherRemaining: gameState.weatherRemaining,
+        documentLanguage: document.documentElement.lang,
         layout: structuredClone(TABLE_LAYOUT),
         customerCatalog: CUSTOMER_TYPES.map((customerType) => ({
           id: customerType.id,
@@ -2290,6 +2464,48 @@ function exposeDebugState() {
       };
     },
   };
+}
+
+function dailyTarget() {
+  return Math.min(14, 7 + gameState.dayNumber);
+}
+
+function drawOrderBubble(x, y, orderText, statusText) {
+  x = Math.max(74, Math.min(BOARD_WIDTH - 74, x));
+  y = Math.max(40, y);
+  ctx.save();
+  ctx.font = '600 11px "Trebuchet MS", sans-serif';
+  const orderLines = [];
+  let line = "";
+  for (const word of String(orderText || "Cho mình một ly trà nhé.").split(/\s+/)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(next).width > 124) {
+      orderLines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  }
+  if (line) orderLines.push(line);
+  const height = 24 + orderLines.length * 14;
+  ctx.fillStyle = "rgba(255, 248, 230, 0.96)";
+  ctx.beginPath();
+  ctx.roundRect(x - 72, y - 20, 144, height, 8);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x - 6, y - 20 + height);
+  ctx.lineTo(x, y - 14 + height);
+  ctx.lineTo(x + 6, y - 20 + height);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#8d6040";
+  ctx.font = '600 8px "Trebuchet MS", sans-serif';
+  ctx.textAlign = "left";
+  ctx.fillText(statusText, x - 62, y - 6);
+  ctx.fillStyle = "#5f351c";
+  ctx.font = '600 11px "Trebuchet MS", sans-serif';
+  orderLines.forEach((text, index) => ctx.fillText(text, x - 62, y + 8 + index * 14, 124));
+  ctx.restore();
 }
 
 function createAudioEngine() {

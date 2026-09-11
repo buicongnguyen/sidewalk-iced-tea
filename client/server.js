@@ -20,8 +20,16 @@ const CONTENT_TYPES = {
 };
 
 const server = http.createServer((request, response) => {
-  const requestUrl = new URL(request.url || "/", `http://${request.headers.host}`);
-  let requestedPath = decodeURIComponent(requestUrl.pathname);
+  let requestedPath;
+  try {
+    const requestUrl = new URL(request.url || "/", "http://localhost");
+    requestedPath = decodeURIComponent(requestUrl.pathname);
+    if (requestedPath.includes("\0")) throw new URIError("Null path");
+  } catch {
+    response.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Bad request");
+    return;
+  }
   const acceptsHtml = (request.headers.accept || "").includes("text/html");
 
   if (requestedPath === "/") {

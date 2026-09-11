@@ -101,6 +101,8 @@ button {
 }
 
 .playfield-frame {
+  display: grid;
+  place-items: center;
   position: relative;
   flex: 1 1 auto;
   min-height: 240px;
@@ -116,7 +118,8 @@ button {
 #game-canvas {
   display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
   image-rendering: pixelated;
   touch-action: manipulation;
 }
@@ -223,6 +226,25 @@ button {
   border-radius: 16px;
   background: rgba(255, 239, 205, 0.12);
   color: #fff5dd;
+}
+
+.order-caption {
+  display: none;
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  margin: 0;
+  padding: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  background: #fff8e6;
+  color: #352818;
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .order-caption:not(:empty) { display: block; }
 }
 
 .meta-label {
