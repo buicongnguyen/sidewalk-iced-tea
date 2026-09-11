@@ -402,4 +402,7 @@ button {
 #game-canvas[hidden], #game-canvas-3d[hidden] { display: none; }
 .view-control { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .view-control select { padding: 5px 12px; font: inherit; }
+.view-control[hidden] { display: none; }
+.view-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+#view-zoom { width: 90px; accent-color: #57b9b4; }
 .playfield-frame:has(#game-canvas-3d:not([hidden])) .order-caption:not(:empty) { display: block; }

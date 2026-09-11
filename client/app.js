@@ -199,6 +199,7 @@ async function init() {
 function bindEvents() {
   ui.canvas.addEventListener("pointerdown", handleCanvasPointer);
   document.getElementById("view-mode").addEventListener("change", changeView);
+  document.getElementById("view-zoom").addEventListener("input", event => runtime.scene3d?.setZoom(event.target.value));
   ui.startButton.addEventListener("click", handleStartButton);
   ui.installButton.addEventListener("click", handleInstallButton);
   ui.upgradeServe.addEventListener("click", () => buyUpgrade("faster_serve"));
@@ -2493,13 +2494,14 @@ async function changeView() {
     select.value = "2d";
     canvas.hidden = true;
     ui.canvas.hidden = false;
+    document.getElementById("zoom-control").hidden = true;
     showToast("Không mở được 3D. Quán tiếp tục ở chế độ 2D.");
   };
   select.disabled = true;
   try {
     if (select.value === "3d" && !runtime.scene3d) {
       const { createScene3D } = await import("./scene3d.js");
-      runtime.scene3d = createScene3D(canvas, TABLE_LAYOUT, serveTable, () => {
+      runtime.scene3d = await createScene3D(canvas, TABLE_LAYOUT, serveTable, () => {
         fallback();
         // A lost context must not be selected again until the page is reloaded.
         select.querySelector('[value="3d"]').disabled = true;
@@ -2508,6 +2510,7 @@ async function changeView() {
     runtime.view3d = select.value === "3d";
     canvas.hidden = !runtime.view3d;
     ui.canvas.hidden = runtime.view3d;
+    document.getElementById("zoom-control").hidden = !runtime.view3d;
   } catch {
     fallback();
   } finally {

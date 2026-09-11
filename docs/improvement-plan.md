@@ -1,5 +1,8 @@
 # Evaluation and release plan
 
+The subsequent [Blender art upgrade](blender-art.md) supersedes the procedural
+asset and Blender-availability limitations recorded in the prototype below.
+
 ## Implemented 3D prototype
 
 The first release scope below is complete. The next release adds an opt-in 3D

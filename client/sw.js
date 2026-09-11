@@ -1,4 +1,4 @@
-const CACHE_NAME = "sidewalk-iced-tea-planb-v16";
+const CACHE_NAME = "sidewalk-iced-tea-planb-v17";
 const CUSTOMER_ASSET_NAMES = [
   "customer-man",
   "customer-woman",
@@ -55,6 +55,10 @@ const APP_SHELL = [
   "./app.css",
   "./app.js",
   "./scene3d.js",
+  "./public/assets/3d/shop-kit.glb",
+  "./vendor/GLTFLoader.js",
+  "./vendor/BufferGeometryUtils.js",
+  "./vendor/RoomEnvironment.js",
   "./vendor/three.module.js",
   "./vendor/three.core.js",
   "./manifest.webmanifest",

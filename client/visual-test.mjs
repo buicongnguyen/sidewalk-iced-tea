@@ -34,6 +34,7 @@ try {
     await page.waitForFunction(()=>window.__planBGame.getSnapshot().view==='3d');
     await page.waitForTimeout(150);
     const before=await page.evaluate(()=>window.__planBGame.getSnapshot());
+    assert.equal(before.renderer.assetKit,'blender-v1');
     assert.equal(before.renderer.people,before.customers.length);
     assert.equal(before.renderer.cups,before.customers.filter(c=>c.phase==='enjoying').length);
     const target=before.customers.find(c=>c.phase==='waiting');
@@ -42,10 +43,10 @@ try {
     const bounds=await page.locator('#game-canvas-3d').boundingBox();
     await page.mouse.click(bounds.x+point.x/960*bounds.width,bounds.y+point.y/540*bounds.height);
     await page.waitForFunction(id=>window.__planBGame.getSnapshot().customers.some(c=>c.id===id&&c.phase==='enjoying'),target.id);
-    await page.screenshot({path:`test-results/scene-3d-playing-${viewport.width}.png`,fullPage:true});
     await page.click('#pause-button');
     const served=await page.evaluate(()=>window.__planBGame.getSnapshot());
     assert.ok(served.renderer.cups>0);
+    await page.screenshot({path:`test-results/scene-3d-playing-${viewport.width}.png`,fullPage:true,style:'#title-overlay { visibility: hidden !important; }'});
     const nonblank=await page.evaluate(()=>{
       const c=document.querySelector('#game-canvas-3d');
       const copy=document.createElement('canvas');copy.width=c.width;copy.height=c.height;
@@ -72,7 +73,7 @@ try {
       const {createScene3D}=await import('./scene3d.js');
       const canvas=document.createElement('canvas');
       const state=window.__planBGame.getSnapshot();
-      const scene=createScene3D(canvas,state.layout,()=>{},()=>{},18);
+      const scene=await createScene3D(canvas,state.layout,()=>{},()=>{},18);
       const sample=structuredClone(state.customers[0]);
       const frames=[];
       for(const phase of ['walking_to_table','waiting','being_served','enjoying','walking_out']) {
@@ -91,6 +92,12 @@ try {
     }
     await page.selectOption('#view-mode','3d');
     await page.waitForFunction(()=>window.__planBGame.getSnapshot().view==='3d');
+    const zoomBefore=await page.evaluate(()=>document.querySelector('#game-canvas-3d').toDataURL());
+    await page.locator('#view-zoom').evaluate(input=>{input.value='1.6';input.dispatchEvent(new Event('input',{bubbles:true}));});
+    await page.waitForTimeout(150);
+    const zoomAfter=await page.evaluate(()=>document.querySelector('#game-canvas-3d').toDataURL());
+    assert.notEqual(zoomAfter,zoomBefore);
+    await writeFile(`test-results/detail-${viewport.width}.png`,Buffer.from(zoomAfter.split(',')[1],'base64'));
     await page.evaluate(()=>document.querySelector('#game-canvas-3d').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext());
     await page.waitForFunction(()=>window.__planBGame.getSnapshot().view==='2d');
     assert.equal(await page.locator('#game-canvas').isVisible(),true);
