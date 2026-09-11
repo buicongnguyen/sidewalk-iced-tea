@@ -70,7 +70,10 @@ try {
     page=await open(base({dayNumber:3,nextCustomerId:5,customers:guests,campaign}),{width:quantity===2?320:390,height:quantity===2?568:844},quantity===3,quantity===2);
     await page.click('#start-button');
     await choose(page,'lime','less','less',quantity);
-    await page.screenshot({path:`test-results/batch-preparation-${quantity}.png`});
+    // Software-rendered CI screenshots must not consume customer patience.
+    await page.evaluate(()=>document.querySelector('#pause-button').click());
+    await page.screenshot({path:`test-results/batch-preparation-${quantity}.png`,style:'#title-overlay,#toast {visibility:hidden!important}'});
+    await page.evaluate(()=>document.querySelector('#pause-button').click());
     await page.click('#prepare-drink');
     await page.waitForFunction(()=>window.__planBGame.getSnapshot().campaign.batches[1]?.elapsed>=window.__planBGame.getSnapshot().campaign.batches[1]?.duration);
     assert.deepEqual(rules.recipe((await snapshot(page)).campaign.batches[1]),recipe);
@@ -84,10 +87,19 @@ try {
     assert.ok((await page.locator('#batch-1').innerText()).includes(`${quantity-1} ly`));
     await page.screenshot({path:`test-results/batch-remaining-${quantity}.png`,style:'#title-overlay,#toast {visibility:hidden!important}'});
     await page.reload();await page.waitForFunction(()=>window.__planBGame);
+    if(quantity===3)await page.waitForFunction(()=>window.__planBGame.getSnapshot().view==='3d');
     state=await snapshot(page);assert.equal(state.campaign.batches[1].remaining,quantity-1);assert.equal(state.campaign.batches[1].id,batchId);assert.equal(state.coins,coins);
-    await page.click('#start-button');await page.click('#batch-1');await page.click('[data-customer-id="3"]');
     for(let served=2;served<=quantity;served++) {
-      await page.click('#deliver-drink');state=await snapshot(page);
+      state=await page.evaluate(first=>{
+        document.querySelector('#start-button').click();
+        if(first) {
+          document.querySelector('#batch-1').click();
+          document.querySelector('[data-customer-id="3"]').click();
+        }
+        document.querySelector('#deliver-drink').click();
+        document.querySelector('#pause-button').click();
+        return window.__planBGame.getSnapshot();
+      },served===2);
       assert.equal(state.totalServed,served);
       if(served<quantity) {
         assert.equal(state.selectedCustomerId,4);assert.equal(await page.locator('#batch-1').getAttribute('aria-pressed'),'true');
@@ -96,7 +108,12 @@ try {
     }
     assert.equal(state.campaign.batches.length,1);assert.equal(state.campaign.batches[0].id,1);assert.equal(state.campaign.batches[0].remaining,1);
     assert.equal(state.customers.find(c=>c.id===2).phase,'waiting');
-    await page.click('#discard-drink');assert.equal((await snapshot(page)).campaign.batches.length,0);
+    await page.evaluate(()=>{
+      document.querySelector('#start-button').click();
+      document.querySelector('#discard-drink').click();
+      document.querySelector('#pause-button').click();
+    });
+    assert.equal((await snapshot(page)).campaign.batches.length,0);
     await page.context().close();console.log('PASS multi-cup preparation, exact matching, selected batch, reload and depletion',quantity);
   }
 
