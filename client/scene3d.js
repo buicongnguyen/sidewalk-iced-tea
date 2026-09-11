@@ -1,6 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 import { GLTFLoader } from './vendor/GLTFLoader.js';
 import { RoomEnvironment } from './vendor/RoomEnvironment.js';
+import { DRINKS } from './campaign.mjs';
 
 let kitPromise;
 
@@ -27,7 +28,7 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
   pmrem.dispose();
   const camera = new THREE.OrthographicCamera(-6.8,6.8,3.825,-3.825,0.1,60);
   camera.position.set(0,7.8,9);
-  camera.lookAt(0,0,0);
+  camera.lookAt(0,.25,0);
   const ambient = new THREE.HemisphereLight(0xc7e6ff,0x66705a,.9);
   scene.add(ambient);
   const sun = new THREE.DirectionalLight(0xffffff,2.5);
@@ -42,6 +43,7 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
   const box = new THREE.BoxGeometry(1,1,1);
   const ball = new THREE.SphereGeometry(1,20,14);
   const headband = new THREE.TorusGeometry(.106,.012,6,24);
+  const cylinder = new THREE.CylinderGeometry(1,1,1,20);
   function material(color) {
     if (!materials.has(color)) materials.set(color,new THREE.MeshStandardMaterial({color,roughness:0.85}));
     return materials.get(color);
@@ -149,6 +151,12 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
     const knees=[root.getObjectByName('LeftKnee'),root.getObjectByName('RightKnee')];
     const leftArm=root.getObjectByName('LeftArm'),rightArm=root.getObjectByName('RightArm');
     const cup=asset('Drink',rightArm,[0,-.3,.035]);
+    const drink=customer.order?.drink||'tea';
+    if(DRINKS[drink])cup.traverse(item=>{
+      if(item.isMesh&&item.material.name==='Tea')item.material=material(DRINKS[drink].color);
+    });
+    if(drink==='lime')mesh(cup,ball,'#ec9f32',[.028,.028,.01],[.05,.065,0]);
+    if(drink==='coffee')mesh(cup,cylinder,'#e8c79e',[.042,.025,.042],[0,-.042,0]);
     cup.visible=false;
     const umbrella=mesh(root,new THREE.ConeGeometry(.48,.2,12),'#379578',[1,1,1],[0,1.4,0]);
     umbrella.visible=false;

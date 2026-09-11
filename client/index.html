@@ -6,11 +6,11 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#d16f49" />
-    <title>Trà Đá Vỉa Hè - Plan B</title>
+    <meta name="theme-color" content="#24796b" />
+    <title>Trà Đá Vỉa Hè - Chuyện Góc Phố</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/icons/app-icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./app.css" />
+    <link rel="stylesheet" href="./app.css?v=18" />
   </head>
   <body>
     <div class="app-shell">
@@ -48,6 +48,10 @@
             </div>
           </div>
 
+          <div id="chapter-band" hidden>
+            <strong id="chapter-title">Chuyện góc phố</strong>
+            <span id="chapter-progress"></span>
+          </div>
           <div class="playfield-frame">
             <canvas
               id="game-canvas"
@@ -60,7 +64,7 @@
 
             <div id="title-overlay" class="overlay">
               <div class="overlay-card">
-                <p class="eyebrow">Bản web Plan B</p>
+                <p class="eyebrow" id="game-subtitle">Chuyện góc phố</p>
                 <h1>Trà Đá Vỉa Hè</h1>
                 <p id="overlay-copy">
                   Chạm vào bàn trước khi hết giờ chờ. Khách sẽ gọi món bằng
@@ -86,6 +90,29 @@
             </div>
             <div id="toast" class="toast hidden" aria-live="polite"></div>
           </div>
+
+          <section id="story-panel" hidden aria-label="Quầy pha nước">
+            <div id="order-list" class="order-list" aria-label="Đơn đang chờ"></div>
+            <div class="preparation-row">
+              <fieldset class="recipe-picker"><legend>Món</legend>
+                <label><input type="radio" name="drink" value="tea" checked /><img src="./public/assets/drinks/tea.svg" alt="" />Trà đá</label>
+                <label><input type="radio" name="drink" value="lime" /><img src="./public/assets/drinks/lime.svg" alt="" />Trà tắc</label>
+                <label><input type="radio" name="drink" value="coffee" /><img src="./public/assets/drinks/coffee.svg" alt="" />Cà phê sữa</label>
+              </fieldset>
+              <div class="recipe-options">
+                <label>Đá<select id="recipe-ice"><option value="normal">Vừa</option><option value="less">Ít đá</option></select></label>
+                <label>Độ ngọt<select id="recipe-sugar"><option value="normal">Vừa</option><option value="less">Ít ngọt</option></select></label>
+                <button id="prepare-drink" type="button">Pha</button>
+              </div>
+            </div>
+            <div class="tray-row">
+              <button id="batch-0" type="button" class="batch-slot"></button>
+              <button id="batch-1" type="button" class="batch-slot"></button>
+              <button id="discard-drink" type="button" title="Bỏ ly đang chọn">Bỏ ly</button>
+              <button id="deliver-drink" type="button">Bưng ra</button>
+            </div>
+            <p id="story-feedback" role="status" aria-live="polite"></p>
+          </section>
 
           <div class="control-panel">
             <div class="view-toolbar">
@@ -116,6 +143,7 @@
             </div>
 
             <div class="action-grid">
+              <button id="upgrade-slot" class="action-button" type="button" hidden>Thêm chỗ pha<small>15 xu · ngày 2</small></button>
               <button id="upgrade-serve" class="action-button" type="button">
                 Pha nhanh
                 <small>10 xu</small>
@@ -133,11 +161,12 @@
                 <small>làm lại từ đầu</small>
               </button>
             </div>
+            <nav class="mode-links" aria-label="Chế độ chơi"><a href="./">Chuyện góc phố</a><a href="./?mode=classic">Classic · bản cũ</a></nav>
           </div>
         </section>
       </main>
     </div>
 
-    <script type="module" src="./app.js"></script>
+    <script type="module" src="./app.js?v=18"></script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-const CACHE_NAME = "sidewalk-iced-tea-planb-v17";
+const CACHE_NAME = "sidewalk-iced-tea-planb-v18";
 const CUSTOMER_ASSET_NAMES = [
   "customer-man",
   "customer-woman",
@@ -54,6 +54,13 @@ const APP_SHELL = [
   "./index.html",
   "./app.css",
   "./app.js",
+  "./app.css?v=18",
+  "./app.js?v=18",
+  "./scene3d.js?v=18",
+  "./campaign.mjs",
+  "./public/assets/drinks/tea.svg",
+  "./public/assets/drinks/lime.svg",
+  "./public/assets/drinks/coffee.svg",
   "./scene3d.js",
   "./public/assets/3d/shop-kit.glb",
   "./vendor/GLTFLoader.js",

@@ -6,6 +6,8 @@
     "start": "node server.js",
     "flow": "node flow-test.mjs",
     "visual": "node visual-test.mjs",
+    "rules": "node campaign-test.mjs",
+    "story": "node story-test.mjs",
     "smoke": "node smoke-test.mjs"
   },
   "devDependencies": {

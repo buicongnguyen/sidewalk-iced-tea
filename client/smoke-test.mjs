@@ -95,7 +95,7 @@ async function runSmoke(serverUrl) {
   try {
     const errors = [];
     page.on("pageerror", error => errors.push(error.message));
-    await page.goto(serverUrl, { waitUntil: "networkidle" });
+    await page.goto(serverUrl+'/?mode=classic', { waitUntil: "networkidle" });
     await page.waitForSelector("#title-overlay", { state: "visible" });
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready;

@@ -1,23 +1,26 @@
+import * as story from './campaign.mjs';
+const IS_STORY = new URLSearchParams(location.search).get('mode') !== 'classic';
+const SAVE_SUFFIX = IS_STORY ? ':story' : '';
 const GAME_VERSION = 1;
-const SAVE_DB_NAME = "sidewalk-iced-tea-planb";
+const SAVE_DB_NAME = "sidewalk-iced-tea-planb" + SAVE_SUFFIX;
 const SAVE_STORE_NAME = "saves";
 const SAVE_SLOT_KEY = "slot-1";
-const ACTIVE_SLOT_POINTER = "sidewalk-iced-tea:active-slot";
-const FALLBACK_SAVE_KEY = "sidewalk-iced-tea:save-fallback";
-const SAVE_BACKUP_KEY = "sidewalk-iced-tea:save-backup";
+const ACTIVE_SLOT_POINTER = "sidewalk-iced-tea:active-slot" + SAVE_SUFFIX;
+const FALLBACK_SAVE_KEY = "sidewalk-iced-tea:save-fallback" + SAVE_SUFFIX;
+const SAVE_BACKUP_KEY = "sidewalk-iced-tea:save-backup" + SAVE_SUFFIX;
 const FIXED_STEP = 0.1;
 const MAX_CATCH_UP_SECONDS = 30;
 const MAX_IDLE_SECONDS = 600;
 const IDLE_EFFICIENCY = 0.25;
 const DEFAULT_LANGUAGE = "vi";
-const MAX_WAIT_SECONDS = 18;
+const MAX_WAIT_SECONDS = IS_STORY ? 40 : 18;
 const BASE_SERVE_TIME = 2.5;
 const FAST_SERVE_TIME = 1.5;
 const BASE_SPAWN_INTERVAL = 6.0;
 const SPAWN_VARIANCE = 1.5;
 const WEATHER_WINDOW = [45, 75];
 const RAIN_DURATION = 20;
-const SHIFT_PHASE_DURATION = 45;
+const SHIFT_PHASE_DURATION = IS_STORY ? 60 : 45;
 const SHIFT_PHASES = [
   { id: "morning", label: "Morning", labelVi: "Sáng" },
   { id: "afternoon", label: "Afternoon", labelVi: "Chiều" },
@@ -106,6 +109,8 @@ const CUSTOMER_ORDER_LIBRARY = {
 };
 
 document.documentElement.lang = DEFAULT_LANGUAGE;
+document.title=IS_STORY?'Trà Đá Vỉa Hè - Chuyện Góc Phố':'Trà Đá Vỉa Hè - Classic';
+document.body.classList.toggle('story-mode', IS_STORY);
 
 const BASE_ASSET_PATHS = {
   bg_room: "./public/assets/final/bg-room.png",
@@ -150,6 +155,8 @@ ctx.imageSmoothingEnabled = false;
 const TABLE_LAYOUT = buildTableLayout();
 
 const runtime = {
+  selectedCustomerId: null,
+  selectedBatchId: null,
   view3d: false,
   scene3d: null,
   mode: "title",
@@ -194,9 +201,14 @@ async function init() {
   exposeDebugState();
   registerServiceWorker();
   requestAnimationFrame(frameLoop);
+  if (IS_STORY && new URLSearchParams(location.search).get('view')!=='2d') {
+    document.getElementById('view-mode').value='3d';
+    void changeView();
+  }
 }
 
 function bindEvents() {
+  bindStoryControls();
   ui.canvas.addEventListener("pointerdown", handleCanvasPointer);
   document.getElementById("view-mode").addEventListener("change", changeView);
   document.getElementById("view-zoom").addEventListener("input", event => runtime.scene3d?.setZoom(event.target.value));
@@ -226,6 +238,11 @@ function bindEvents() {
 }
 
 function buildTableLayout() {
+  if (IS_STORY) return [[360,190],[640,190],[500,350]].map(([x,y],index)=>({
+    id:`table-story-${index}`,index,row:index===2?1:0,column:index,x,y,width:132,height:66,
+    approachX:AISLE_X,approachY:y+78,seatX:x+66,seatY:y+88,
+    seats:[{x:x+38,y:y+88},{x:x+94,y:y+88}],
+  }));
   const layout = [];
   const startX = 280;
   const startY = 120;
@@ -269,6 +286,8 @@ function createDefaultState() {
   return {
     version: GAME_VERSION,
     coins: 0,
+    saveRevision: 0,
+    campaign: IS_STORY ? story.createCampaign() : undefined,
     score: 0,
     tipCoins: 0,
     totalServed: 0,
@@ -277,7 +296,7 @@ function createDefaultState() {
     umbrellaOwned: false,
     weatherState: "clear",
     weatherRemaining: 0,
-    nextWeatherRollIn: randomInRange(...WEATHER_WINDOW),
+    nextWeatherRollIn: IS_STORY ? 60 : randomInRange(...WEATHER_WINDOW),
     dayNumber: 1,
     levelElapsed: 0,
     timeOfDay: SHIFT_PHASES[0].id,
@@ -290,7 +309,7 @@ function createDefaultState() {
     lastSimulatedAt: now,
     audioUnlocked: false,
     nextCustomerId: 1,
-    spawnTimer: randomSpawnInterval(1),
+    spawnTimer: IS_STORY ? 2 : randomSpawnInterval(1),
     tables: TABLE_LAYOUT.map((table) => ({
       id: table.id,
       status: "empty",
@@ -318,6 +337,8 @@ function restoreState(saved) {
   const restored = {
     ...base,
     version: GAME_VERSION,
+    campaign: IS_STORY ? story.createCampaign(saved.campaign) : undefined,
+    saveRevision: Math.max(0,Math.floor(asNumber(saved.saveRevision,0))),
     coins: asNumber(saved.coins, base.coins),
     score: asNumber(saved.score, base.score),
     tipCoins: asNumber(saved.tipCoins, base.tipCoins),
@@ -383,6 +404,26 @@ function restoreState(saved) {
         .filter(Boolean)
     : [];
 
+  if (IS_STORY) {
+    restored.dayNumber=Math.floor(Math.max(1,Math.min(1000000,restored.dayNumber)));
+    const occupied=new Set(),ids=new Set();
+    restored.customers=restored.customers.filter(customer=>{
+      const seat=`${customer.tableId}:${customer.seatIndex}`;
+      if(customer.id<1||!Number.isInteger(customer.id)||ids.has(customer.id)||!['walking_to_table','waiting','being_served','enjoying','walking_out'].includes(customer.phase))return false;
+      if(customer.phase!=='walking_out'&&occupied.has(seat))return false;
+      if(customer.phase!=='walking_out')occupied.add(seat);
+      ids.add(customer.id);return true;
+    });
+    restored.nextCustomerId=Math.max(restored.nextCustomerId,...restored.customers.map(c=>c.id+1));
+    restored.campaign.batches=restored.campaign.batches.filter(batch=>story.DRINKS[batch.drink].day<=restored.dayNumber);
+    for(const customer of restored.customers) {
+      if(story.DRINKS[customer.order.drink].day>restored.dayNumber)customer.order=story.recipe();
+      if(restored.dayNumber<2)customer.order.ice='normal';
+      if(restored.dayNumber<3||customer.order.drink==='tea')customer.order.sugar='normal';
+      if(restored.dayNumber<3)customer.order.regularId=null;
+      customer.orderText=story.orderText(customer.order);
+    }
+  }
   return restored;
 }
 
@@ -420,6 +461,8 @@ function normalizeCustomer(customer) {
     orderText: normalizeOrderText(customer.orderText, customerType.id),
     rewardGranted: Boolean(customer.rewardGranted),
     tipReward: asNumber(customer.tipReward, 0),
+    order: IS_STORY ? {...story.recipe(customer.order),regularId:story.REGULARS[customer.order?.regularId]?customer.order.regularId:null} : undefined,
+    rejectedBatches: Array.isArray(customer.rejectedBatches)?customer.rejectedBatches.filter(Number.isInteger):[],
   };
 }
 
@@ -480,14 +523,14 @@ async function loadGameState() {
     let data = null;
 
     if (runtime.storageMode === "indexeddb" && runtime.db) {
-      data = await idbGet(runtime.db, SAVE_SLOT_KEY);
+      try { data = await idbGet(runtime.db, SAVE_SLOT_KEY); } catch(error) { console.warn('Reading recovery checkpoint after IndexedDB failure.',error); }
     }
 
-    if (!data) {
-      const raw = localStorage.getItem(FALLBACK_SAVE_KEY);
-      const backupRaw = localStorage.getItem(SAVE_BACKUP_KEY);
-      data = parseSaveSource(raw, backupRaw);
-    }
+    const candidates=[data];
+    try { candidates.push(parseSaveSource(localStorage.getItem(FALLBACK_SAVE_KEY),null),parseSaveSource(localStorage.getItem(SAVE_BACKUP_KEY),null)); } catch {}
+    const available=candidates.filter(Boolean);
+    available.sort((a,b)=>(asNumber(b.saveRevision,0)-asNumber(a.saveRevision,0))||(asNumber(b.lastSavedAt,0)-asNumber(a.lastSavedAt,0)));
+    data=available[0]??null;
 
     runtime.saveStatus = data ? "loaded" : "ready";
     return data;
@@ -513,12 +556,17 @@ function idbPut(db, key, value) {
     const tx = db.transaction(SAVE_STORE_NAME, "readwrite");
     const store = tx.objectStore(SAVE_STORE_NAME);
     const request = store.put(value, key);
-    request.onsuccess = () => resolve();
+    tx.oncomplete = () => resolve();
+    tx.onabort = () => reject(tx.error||new Error('Save transaction aborted'));
     request.onerror = () => reject(request.error);
   });
 }
 
 async function persistGameState(reason = "autosave") {
+  gameState.saveRevision+=1;
+  gameState.lastSavedAt=Date.now();
+  // A navigation may cancel IndexedDB work. Checkpoint the command synchronously.
+  try { localStorage.setItem(SAVE_BACKUP_KEY,JSON.stringify(gameState)); } catch {}
   runtime.pendingSaveReason = reason;
 
   if (!runtime.saveDrainPromise) {
@@ -544,8 +592,6 @@ async function drainPendingSaves() {
 }
 
 async function writeGameState(reason) {
-  gameState.lastSavedAt = Date.now();
-
   try {
     const serializableState = structuredClone(gameState);
 
@@ -553,8 +599,11 @@ async function writeGameState(reason) {
       await idbPut(runtime.db, SAVE_SLOT_KEY, serializableState);
     }
 
-    localStorage.setItem(FALLBACK_SAVE_KEY, JSON.stringify(serializableState));
-    localStorage.setItem(SAVE_BACKUP_KEY, JSON.stringify(serializableState));
+    const checkpoint=parseSaveSource(localStorage.getItem(SAVE_BACKUP_KEY),null);
+    if(!checkpoint||asNumber(checkpoint.saveRevision,0)<=serializableState.saveRevision) {
+      localStorage.setItem(FALLBACK_SAVE_KEY, JSON.stringify(serializableState));
+      localStorage.setItem(SAVE_BACKUP_KEY, JSON.stringify(serializableState));
+    }
     runtime.saveStatus = reason === "autosave" ? "saved" : reason;
     updateHud();
   } catch (error) {
@@ -599,11 +648,20 @@ function updateLogic(deltaSeconds) {
   }
 
   updateWeather(deltaSeconds);
+  if (IS_STORY) {
+    const completed=story.advancePreparation(gameState.campaign,deltaSeconds);
+    if(completed.length) {
+      runtime.audio.beep('ready');
+      storyFeedback(`${story.DRINKS[completed[0].drink].name} đã sẵn sàng.`);
+      void persistGameState('ready');
+    }
+  }
   updateSpawning(deltaSeconds);
   updateCustomers(deltaSeconds);
   syncTablesFromCustomers();
   updateFloatingTexts(deltaSeconds);
   updateHud();
+  if (IS_STORY && gameState.campaign.closing && gameState.customers.length===0) completeLevel();
 }
 
 function updateShift(deltaSeconds) {
@@ -623,6 +681,7 @@ function updateShift(deltaSeconds) {
   }
 
   if (gameState.levelElapsed >= LEVEL_DURATION) {
+    if (IS_STORY) { gameState.campaign.closing=true; return false; }
     completeLevel();
     return true;
   }
@@ -643,6 +702,11 @@ function completeLevel() {
     coinsEarned: gameState.levelCoinsEarned,
   };
 
+  if (IS_STORY) {
+    summary.stars=story.dayStars(gameState.campaign,gameState.levelServed,gameState.levelMissed,gameState.dayNumber);
+    if(gameState.dayNumber<=5)gameState.campaign.stars[gameState.dayNumber-1]=summary.stars;
+    gameState.campaign.batches=[];
+  }
   gameState.levelComplete = true;
   gameState.levelElapsed = LEVEL_DURATION;
   gameState.timeOfDay = SHIFT_PHASES[SHIFT_PHASES.length - 1].id;
@@ -679,6 +743,8 @@ function startNextLevel() {
 }
 
 function resetLevelProgress() {
+  if (IS_STORY) story.resetDay(gameState.campaign);
+  runtime.selectedCustomerId=null;runtime.selectedBatchId=null;
   gameState.levelElapsed = 0;
   gameState.timeOfDay = SHIFT_PHASES[0].id;
   gameState.levelComplete = false;
@@ -689,7 +755,8 @@ function resetLevelProgress() {
   gameState.weatherState = "clear";
   gameState.weatherRemaining = 0;
   gameState.nextWeatherRollIn = randomInRange(...WEATHER_WINDOW);
-  gameState.spawnTimer = randomSpawnInterval(1);
+  gameState.spawnTimer = IS_STORY ? 2 : randomSpawnInterval(1);
+  if (IS_STORY) gameState.nextWeatherRollIn=gameState.dayNumber>=4?60:9999;
   clearLevelBoard();
 }
 
@@ -709,11 +776,12 @@ function clearLevelBoard() {
 }
 
 function updateWeather(deltaSeconds) {
+  if (IS_STORY && gameState.dayNumber<4) return;
   if (gameState.weatherState === "rain") {
     gameState.weatherRemaining = Math.max(0, gameState.weatherRemaining - deltaSeconds);
     if (gameState.weatherRemaining <= 0) {
       gameState.weatherState = "clear";
-      gameState.nextWeatherRollIn = randomInRange(...WEATHER_WINDOW);
+      gameState.nextWeatherRollIn = IS_STORY ? 70 : randomInRange(...WEATHER_WINDOW);
       showToast("Hết mưa rồi, khách lại đông hơn.");
     }
     return;
@@ -723,13 +791,14 @@ function updateWeather(deltaSeconds) {
   if (gameState.nextWeatherRollIn <= 0) {
     gameState.weatherState = "rain";
     gameState.weatherRemaining = RAIN_DURATION;
-    gameState.nextWeatherRollIn = randomInRange(...WEATHER_WINDOW);
+    gameState.nextWeatherRollIn = IS_STORY ? 70 : randomInRange(...WEATHER_WINDOW);
     runtime.audio.beep("rain");
     showToast(gameState.umbrellaOwned ? "Mưa nhẹ thôi, ô che vẫn ổn." : "Mưa làm khách thưa đi một chút.");
   }
 }
 
 function updateSpawning(deltaSeconds) {
+  if (IS_STORY && gameState.campaign.closing) return;
   gameState.spawnTimer -= deltaSeconds;
 
   if (gameState.spawnTimer > 0) {
@@ -738,11 +807,11 @@ function updateSpawning(deltaSeconds) {
 
   if (!spawnCustomer()) {
     gameState.stats.dropped += 1;
-    gameState.spawnTimer = randomSpawnInterval(getSpawnRateMultiplier());
+    gameState.spawnTimer = IS_STORY ? 3 : randomSpawnInterval(getSpawnRateMultiplier());
     return;
   }
 
-  gameState.spawnTimer = randomSpawnInterval(getSpawnRateMultiplier());
+  gameState.spawnTimer = IS_STORY ? (8+story.random(gameState.campaign)*3)/getSpawnRateMultiplier() : randomSpawnInterval(getSpawnRateMultiplier());
 }
 
 function updateCustomers(deltaSeconds) {
@@ -779,9 +848,10 @@ function updateCustomers(deltaSeconds) {
         beginExit(customer, table);
         gameState.totalMissed += 1;
         gameState.levelMissed += 1;
+        if(IS_STORY)gameState.campaign.streak=0;
         gameState.score = Math.max(0, gameState.score - 1);
         spawnFloatingText({
-          text: "Too late",
+          text: IS_STORY ? "Hẹn lần sau" : "Too late",
           x: seat.x,
           y: tableLayout.y - 10,
           color: "#ffd5d5",
@@ -806,7 +876,7 @@ function updateCustomers(deltaSeconds) {
       customer.enjoyElapsed += deltaSeconds;
       table.status = "enjoying";
       table.enjoyElapsed = customer.enjoyElapsed;
-      if (customer.enjoyElapsed >= 2.4) {
+      if (customer.enjoyElapsed >= (IS_STORY?5:2.4)) {
         beginExit(customer, table);
       }
       continue;
@@ -878,7 +948,10 @@ function spawnCustomer() {
     return false;
   }
 
-  const customerType = findAvailableCustomerType();
+  const order = IS_STORY ? story.makeOrder(gameState.campaign,gameState.dayNumber) : null;
+  const regularType = story.REGULARS[order?.regularId]?.type;
+  const customerType = regularType && !gameState.customers.some(c=>c.type===regularType)
+    ? CUSTOMER_TYPES.find(type=>type.id===regularType) : findAvailableCustomerType();
   if (!customerType) {
     return false;
   }
@@ -903,11 +976,13 @@ function spawnCustomer() {
     waitElapsed: 0,
     serveElapsed: 0,
     enjoyElapsed: 0,
-    orderText: buildCustomerOrderText(customerType.id),
+    orderText: IS_STORY ? story.orderText(order) : buildCustomerOrderText(customerType.id),
+    order,
     rewardGranted: false,
     tipReward: 0,
   };
 
+  if(IS_STORY)customer.orderText=story.orderText(order);
   const table = getTableState(openSeat.layout.id);
   table.status = "reserved";
   table.customerIds = [...table.customerIds, customerId].slice(0, TABLE_CAPACITY);
@@ -943,12 +1018,18 @@ function finishService(customer, table) {
     scoreGain = 1;
   }
 
-  gameState.coins += 1 + tipGain;
+  let basePrice=1;
+  if (IS_STORY) {
+    tipGain=(waitTime<=12?1:0)+(gameState.campaign.streak%3===0?1:0);
+    scoreGain=gameState.campaign.streak;
+    basePrice=story.DRINKS[customer.order.drink].price;
+  }
+  gameState.coins += basePrice + tipGain;
   gameState.tipCoins += tipGain;
   gameState.score += 1 + scoreGain;
   gameState.totalServed += 1;
   gameState.levelServed += 1;
-  gameState.levelCoinsEarned += 1 + tipGain;
+  gameState.levelCoinsEarned += basePrice + tipGain;
   customer.rewardGranted = true;
   customer.tipReward = tipGain;
   customer.phase = "enjoying";
@@ -958,7 +1039,7 @@ function finishService(customer, table) {
 
   if (seat && tableLayout) {
     spawnFloatingText({
-      text: tipGain > 0 ? `+${1 + tipGain} xu / +${1 + scoreGain} điểm` : `+1 xu / +${1 + scoreGain} điểm`,
+      text: tipGain > 0 ? `+${basePrice + tipGain} xu / +${1 + scoreGain} điểm` : `+${basePrice} xu / +${1 + scoreGain} điểm`,
       x: seat.x,
       y: tableLayout.y - 14,
       color: tipGain > 0 ? "#fff2a8" : "#dcffe1",
@@ -1012,6 +1093,11 @@ function serveTable(tableId) {
   }
 
   const waitingCustomer = getPriorityTableCustomer(tableLayout.id, "waiting");
+  if(IS_STORY && waitingCustomer) {
+    runtime.selectedCustomerId=waitingCustomer.id;
+    updateHud();
+    return;
+  }
   if (!waitingCustomer) {
     if (tryPlaceRainUmbrella(tableLayout, getOccupyingTableCustomers(tableLayout.id))) {
       return;
@@ -1118,6 +1204,7 @@ async function handleInstallButton() {
 }
 
 function buyUpgrade(kind) {
+  if(IS_STORY && (runtime.mode!=='playing' && runtime.mode!=='title'))return;
   if (runtime.mode === "title" && !gameState.levelComplete) {
     handleStartButton();
   }
@@ -1188,7 +1275,9 @@ async function resetSave() {
     return;
   }
 
+  const revision=gameState.saveRevision;
   gameState = createDefaultState();
+  gameState.saveRevision=revision;
   runtime.mode = "title";
   runtime.lastFrame = 0;
   runtime.accumulator = 0;
@@ -1221,6 +1310,7 @@ async function handleVisibilityChange() {
 }
 
 function applyResumeSimulation(elapsedSeconds) {
+  if (IS_STORY) return;
   const catchUp = Math.min(elapsedSeconds, MAX_CATCH_UP_SECONDS);
   const extraIdle = Math.max(0, Math.min(elapsedSeconds - catchUp, MAX_IDLE_SECONDS));
 
@@ -1861,10 +1951,31 @@ function updateHud() {
       ? 'Ô che<small>đã mua</small>'
       : 'Ô che<small>20 xu</small>';
 
+  if(IS_STORY)updateStoryHud();
   updateOverlay();
 }
 
 function updateOverlay() {
+  if(IS_STORY) {
+    const chapter=story.chapter(gameState.dayNumber);
+    const show=runtime.mode==='title'||runtime.mode==='paused'||gameState.levelComplete;
+    ui.titleOverlay.classList.toggle('hidden',!show);
+    document.getElementById('game-subtitle').textContent=`Ngày ${gameState.dayNumber} · ${chapter.title}`;
+    if(gameState.levelComplete) {
+      const stars=gameState.lastLevelSummary?.stars??gameState.campaign.stars[Math.min(4,gameState.dayNumber-1)]??0;
+      const regular=gameState.campaign.visited.length>0;
+      const ending=gameState.dayNumber>=3&&!regular?'Hôm nay khách quen chưa nhận được ly nước đúng ý. Ngày mai mình lại thử nhé.':chapter.ending;
+      ui.overlayCopy.textContent=`${stars}/3 sao · ${gameState.levelServed} khách · ${gameState.levelMissed} lỡ · +${gameState.lastLevelSummary?.bonus||0} xu thưởng. ${ending}`;
+      ui.startButton.textContent=gameState.dayNumber>=5?'Ngày mới ở góc phố':`Mở ngày ${gameState.dayNumber+1}`;
+    } else if(runtime.mode==='paused') {
+      ui.overlayCopy.textContent='Quán tạm nghỉ. Khách và các ly đang pha sẽ đợi bạn.';
+      ui.startButton.textContent='Bán tiếp';
+    } else {
+      ui.overlayCopy.textContent=chapter.intro;
+      ui.startButton.textContent=gameState.levelElapsed>0?'Tiếp tục ca':'Mở quán';
+    }
+    return;
+  }
   const shiftPhase = getShiftPhaseInfo(gameState.levelElapsed);
 
   if (gameState.levelComplete) {
@@ -2042,7 +2153,7 @@ function findOpenTableSeat() {
     return null;
   }
 
-  return openSeats[Math.floor(Math.random() * openSeats.length)];
+  return openSeats[Math.floor((IS_STORY?story.random(gameState.campaign):Math.random()) * openSeats.length)];
 }
 
 function getPriorityTableCustomer(tableId, phases) {
@@ -2076,7 +2187,8 @@ function getPriorityTableCustomer(tableId, phases) {
 
 function findAvailableCustomerType() {
   const activeTypes = new Set(gameState.customers.map((customer) => customer.type));
-  const availableTypes = CUSTOMER_TYPES.filter((customerType) => !activeTypes.has(customerType.id));
+  const reservedTypes=IS_STORY?Object.values(story.REGULARS).map(regular=>regular.type):[];
+  const availableTypes = CUSTOMER_TYPES.filter((customerType) => !activeTypes.has(customerType.id)&&!reservedTypes.includes(customerType.id));
 
   if (availableTypes.length === 0) {
     return null;
@@ -2095,7 +2207,7 @@ function pickWeightedCustomerType(customerTypes) {
     return customerTypes[0] ?? null;
   }
 
-  let roll = Math.random() * totalWeight;
+  let roll = (IS_STORY?story.random(gameState.campaign):Math.random()) * totalWeight;
   for (const customerType of customerTypes) {
     roll -= customerSpawnWeight(customerType);
     if (roll <= 0) {
@@ -2144,10 +2256,15 @@ function getShiftPhaseToast(phase) {
 }
 
 function currentServeTime() {
+  if(IS_STORY)return .2;
   return gameState.serveLevel > 0 ? FAST_SERVE_TIME : BASE_SERVE_TIME;
 }
 
 function getSpawnRateMultiplier() {
+  if (IS_STORY) {
+    const rush=gameState.timeOfDay==='afternoon'?1.5:1;
+    return rush*(gameState.weatherState==='rain'?(gameState.umbrellaOwned?1:.65):1);
+  }
   if (gameState.weatherState !== "rain") {
     return 1;
   }
@@ -2197,6 +2314,7 @@ function normalizeLevelSummary(summary) {
   }
 
   return {
+    stars: Math.max(0,Math.min(3,asNumber(summary.stars,0))),
     bonus: Math.max(0, asNumber(summary.bonus, 0)),
     dayNumber: Math.max(1, asNumber(summary.dayNumber, 1)),
     served: asNumber(summary.served, 0),
@@ -2449,6 +2567,9 @@ function exposeDebugState() {
   window.__planBGame = {
     getSnapshot() {
       return {
+        campaign: IS_STORY ? structuredClone(gameState.campaign) : null,
+        gameMode: IS_STORY ? 'story' : 'classic',
+        selectedCustomerId: runtime.selectedCustomerId,
         view: runtime.view3d ? "3d" : "2d",
         renderer: runtime.scene3d?.diagnostics() ?? null,
         mode: runtime.mode,
@@ -2500,12 +2621,16 @@ async function changeView() {
   select.disabled = true;
   try {
     if (select.value === "3d" && !runtime.scene3d) {
-      const { createScene3D } = await import("./scene3d.js");
+      const { createScene3D } = await import("./scene3d.js?v=18");
       runtime.scene3d = await createScene3D(canvas, TABLE_LAYOUT, serveTable, () => {
         fallback();
         // A lost context must not be selected again until the page is reloaded.
         select.querySelector('[value="3d"]').disabled = true;
       }, MAX_WAIT_SECONDS);
+      if(IS_STORY) {
+        runtime.scene3d.setZoom(1.2);
+        document.getElementById('view-zoom').value='1.2';
+      }
     }
     runtime.view3d = select.value === "3d";
     canvas.hidden = !runtime.view3d;
@@ -2519,7 +2644,106 @@ async function changeView() {
 }
 
 function dailyTarget() {
+  if(IS_STORY)return story.chapter(gameState.dayNumber).target;
   return Math.min(14, 7 + gameState.dayNumber);
+}
+
+function storyFeedback(text) {
+  document.getElementById('story-feedback').textContent=text;
+}
+
+function bindStoryControls() {
+  document.getElementById('story-panel').hidden=!IS_STORY;
+  document.getElementById('chapter-band').hidden=!IS_STORY;
+  document.getElementById('upgrade-slot').hidden=!IS_STORY;
+  if(!IS_STORY){document.getElementById('game-subtitle').textContent='Classic';return;}
+  document.getElementById('prepare-drink').addEventListener('click',()=>{
+    if(runtime.mode!=='playing')return;
+    const value={drink:document.querySelector('[name="drink"]:checked').value,ice:document.getElementById('recipe-ice').value,sugar:document.getElementById('recipe-sugar').value};
+    const batch=story.prepare(gameState.campaign,value,gameState.dayNumber,gameState.serveLevel>0);
+    if(!batch)return;
+    runtime.selectedBatchId=batch.id;
+    runtime.audio.beep('tap');storyFeedback(`Đang pha ${story.DRINKS[batch.drink].name.toLowerCase()}.`);
+    void persistGameState('preparing');updateHud();
+  });
+  for(let index=0;index<2;index++)document.getElementById(`batch-${index}`).addEventListener('click',()=>{
+    runtime.selectedBatchId=gameState.campaign.batches[index]?.id??null;updateHud();
+  });
+  document.getElementById('discard-drink').addEventListener('click',()=>{
+    if(runtime.mode!=='playing')return;
+    gameState.campaign.batches=gameState.campaign.batches.filter(batch=>batch.id!==runtime.selectedBatchId);
+    runtime.selectedBatchId=null;storyFeedback('Đã dọn ly.');void persistGameState('discarded');updateHud();
+  });
+  document.getElementById('deliver-drink').addEventListener('click',()=>{
+    if(runtime.mode!=='playing')return;
+    const customer=gameState.customers.find(c=>c.id===runtime.selectedCustomerId);
+    const result=story.deliver(gameState.campaign,customer,runtime.selectedBatchId);
+    if(result==='wrong')storyFeedback('Chưa đúng vị khách gọi. Ly vẫn trên khay; bạn có thể đổi khách hoặc pha lại.');
+    if(result==='served') {
+      finishService(customer,getTableState(customer.tableId));
+      storyFeedback(`Đúng vị! Chuỗi ${gameState.campaign.streak}${customer.order.regularId?' · '+story.REGULARS[customer.order.regularId].name+' đã nhớ quán.':''}`);
+      runtime.selectedBatchId=null;runtime.selectedCustomerId=null;
+    }
+    void persistGameState(result==='served'?'served':'order-check');updateHud();
+  });
+  document.getElementById('upgrade-slot').addEventListener('click',()=>{
+    if(runtime.mode!=='playing'||gameState.dayNumber<2||gameState.coins<15||gameState.campaign.extraSlot)return;
+    gameState.coins-=15;gameState.campaign.extraSlot=true;
+    storyFeedback('Chỗ pha thứ hai đã sẵn sàng.');void persistGameState('upgrade');updateHud();
+  });
+}
+
+function updateStoryHud() {
+  const campaign=gameState.campaign;
+  const waiting=gameState.customers.filter(c=>c.phase==='waiting').sort((a,b)=>b.waitElapsed-a.waitElapsed);
+  if(!waiting.some(c=>c.id===runtime.selectedCustomerId))runtime.selectedCustomerId=waiting[0]?.id??null;
+  const list=document.getElementById('order-list');
+  const active=new Set(waiting.map(c=>String(c.id)));
+  for(const node of [...list.children])if(!active.has(node.dataset.customerId))node.remove();
+  for(const customer of waiting) {
+    let button=list.querySelector(`[data-customer-id="${customer.id}"]`);
+    if(!button) {
+      button=document.createElement('button');button.type='button';button.dataset.customerId=customer.id;
+      const portrait=document.createElement('img');portrait.src=ASSET_PATHS[CUSTOMER_TYPES.find(t=>t.id===customer.type).assetId];portrait.alt='';
+      const text=document.createElement('span');button.append(portrait,text);list.append(button);
+      button.addEventListener('click',()=>{runtime.selectedCustomerId=customer.id;updateHud();});
+    }
+    const order=customer.order;
+    const title=`${story.REGULARS[order.regularId]?.name||'Bàn '+(getTableLayout(customer.tableId).index+1)} · ${story.DRINKS[order.drink].name}`;
+    button.querySelector('span').textContent=`${title}\n${order.ice==='less'?'Ít đá · ':''}${order.sugar==='less'?'Ít ngọt · ':''}${Math.max(0,Math.ceil(MAX_WAIT_SECONDS-customer.waitElapsed))}s`;
+    button.setAttribute('aria-label',customer.orderText);
+    button.setAttribute('aria-pressed',String(customer.id===runtime.selectedCustomerId));
+  }
+  document.getElementById('chapter-title').textContent=`Ngày ${gameState.dayNumber} · ${story.chapter(gameState.dayNumber).title}`;
+  document.getElementById('chapter-progress').textContent=`Chuỗi ${campaign.streak} · Lan ${campaign.relationships.lan} / Minh ${campaign.relationships.minh}`;
+  if(!campaign.batches.some(b=>b.id===runtime.selectedBatchId))runtime.selectedBatchId=campaign.batches[0]?.id??null;
+  const batch=campaign.batches.find(b=>b.id===runtime.selectedBatchId);
+  for(let index=0;index<2;index++) {
+    const node=document.getElementById(`batch-${index}`),item=campaign.batches[index];
+    node.textContent=item?`${story.DRINKS[item.drink].name} · ${story.ready(item)?'Sẵn sàng':Math.ceil(item.duration-item.elapsed)+'s'}${item.ice==='less'?' · ít đá':''}${item.sugar==='less'?' · ít ngọt':''}`:index>=story.capacity(campaign)?'Chỗ pha chưa mở':'Khay trống';
+    node.disabled=!item;node.setAttribute('aria-pressed',String(item?.id===runtime.selectedBatchId));
+    node.style.setProperty('--brew-progress',item?`${Math.min(100,item.elapsed/item.duration*100)}%`:'0%');
+  }
+  const playing=runtime.mode==='playing';
+  ui.upgradeServe.disabled ||= runtime.mode==='paused';
+  ui.upgradeUmbrella.disabled ||= runtime.mode==='paused';
+  document.getElementById('prepare-drink').disabled=!playing||campaign.batches.length>=story.capacity(campaign);
+  document.getElementById('deliver-drink').disabled=!playing||!runtime.selectedCustomerId||!batch||!story.ready(batch);
+  document.getElementById('discard-drink').disabled=!playing||!batch;
+  document.getElementById('recipe-ice').disabled=gameState.dayNumber<2;
+  const plainTea=document.querySelector('[name="drink"]:checked').value==='tea';
+  document.getElementById('recipe-sugar').disabled=gameState.dayNumber<3||plainTea;
+  if(gameState.dayNumber<2)document.getElementById('recipe-ice').value='normal';
+  if(gameState.dayNumber<3||plainTea)document.getElementById('recipe-sugar').value='normal';
+  for(const input of document.querySelectorAll('[name="drink"]')) {
+    input.disabled=story.DRINKS[input.value].day>gameState.dayNumber;
+    if(input.disabled&&input.checked)document.querySelector('[name="drink"][value="tea"]').checked=true;
+  }
+  const upgrade=document.getElementById('upgrade-slot');
+  upgrade.disabled=!playing||campaign.extraSlot||gameState.coins<15||gameState.dayNumber<2;
+  upgrade.innerHTML=campaign.extraSlot?'Thêm chỗ pha<small>đã mở</small>':'Thêm chỗ pha<small>15 xu · ngày 2</small>';
+  if(campaign.closing)ui.shiftValue.textContent='Đang dọn ca';
+  if(gameState.dayNumber>=4&&gameState.weatherState==='clear')ui.weatherValue.textContent=`Mưa sau ${Math.ceil(gameState.nextWeatherRollIn)}s`;
 }
 
 function drawOrderBubble(x, y, orderText, statusText) {

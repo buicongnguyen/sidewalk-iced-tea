@@ -65,7 +65,7 @@ try {
     stdio: ["ignore", "pipe", "pipe"],
   });
 
-  const serverUrl = await waitForServer(serverProcess);
+  const serverUrl = (await waitForServer(serverProcess)) + '/?mode=classic';
   const browser = await chromium.launch({ headless: true });
   const results = [];
 

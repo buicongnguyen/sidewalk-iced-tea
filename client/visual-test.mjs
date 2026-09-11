@@ -17,7 +17,7 @@ try {
     const page = await browser.newPage({viewport});
     const errors=[];
     page.on('pageerror', error=>errors.push(error.message));
-    await page.goto(url);
+    await page.goto(url+'/?mode=classic');
     await page.click('#start-button');
     await page.waitForFunction(()=>window.__planBGame.getSnapshot().customers.some(c=>c.phase==='waiting'));
     await page.screenshot({path:`test-results/scene-${viewport.width}.png`,fullPage:true});
