@@ -5,9 +5,13 @@
   "scripts": {
     "start": "node server.js",
     "flow": "node flow-test.mjs",
+    "visual": "node visual-test.mjs",
     "smoke": "node smoke-test.mjs"
   },
   "devDependencies": {
     "playwright": "^1.59.1"
+  },
+  "dependencies": {
+    "three": "0.180.0"
   }
 }

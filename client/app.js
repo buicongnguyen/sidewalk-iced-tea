@@ -150,6 +150,8 @@ ctx.imageSmoothingEnabled = false;
 const TABLE_LAYOUT = buildTableLayout();
 
 const runtime = {
+  view3d: false,
+  scene3d: null,
   mode: "title",
   assets: new Map(),
   db: null,
@@ -196,6 +198,7 @@ async function init() {
 
 function bindEvents() {
   ui.canvas.addEventListener("pointerdown", handleCanvasPointer);
+  document.getElementById("view-mode").addEventListener("change", changeView);
   ui.startButton.addEventListener("click", handleStartButton);
   ui.installButton.addEventListener("click", handleInstallButton);
   ui.upgradeServe.addEventListener("click", () => buyUpgrade("faster_serve"));
@@ -995,6 +998,13 @@ function handleCanvasPointer(event) {
     return;
   }
 
+  serveTable(tableLayout.id);
+}
+
+function serveTable(tableId) {
+  if (runtime.mode !== "playing") return;
+  const tableLayout = getTableLayout(tableId);
+  if (!tableLayout) return;
   const table = getTableState(tableLayout.id);
   if (!table) {
     return;
@@ -1247,6 +1257,11 @@ function applyResumeSimulation(elapsedSeconds) {
 }
 
 function renderScene(timestamp) {
+  if (runtime.view3d && runtime.scene3d) {
+    runtime.scene3d.render(gameState, timestamp, runtime.mode === "playing");
+    renderToast();
+    return;
+  }
   ctx.clearRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
   drawRoom();
   drawTables();
@@ -2433,6 +2448,8 @@ function exposeDebugState() {
   window.__planBGame = {
     getSnapshot() {
       return {
+        view: runtime.view3d ? "3d" : "2d",
+        renderer: runtime.scene3d?.diagnostics() ?? null,
         mode: runtime.mode,
         saveStatus: runtime.saveStatus,
         tables: structuredClone(gameState.tables),
@@ -2463,7 +2480,39 @@ function exposeDebugState() {
         })),
       };
     },
+    tablePoint(id) { return runtime.scene3d?.tablePoint(id); },
+    exportGLB() { return runtime.scene3d?.exportGLB(); },
   };
+}
+
+async function changeView() {
+  const select = document.getElementById("view-mode");
+  const canvas = document.getElementById("game-canvas-3d");
+  const fallback = () => {
+    runtime.view3d = false;
+    select.value = "2d";
+    canvas.hidden = true;
+    ui.canvas.hidden = false;
+    showToast("Không mở được 3D. Quán tiếp tục ở chế độ 2D.");
+  };
+  select.disabled = true;
+  try {
+    if (select.value === "3d" && !runtime.scene3d) {
+      const { createScene3D } = await import("./scene3d.js");
+      runtime.scene3d = createScene3D(canvas, TABLE_LAYOUT, serveTable, () => {
+        fallback();
+        // A lost context must not be selected again until the page is reloaded.
+        select.querySelector('[value="3d"]').disabled = true;
+      }, MAX_WAIT_SECONDS);
+    }
+    runtime.view3d = select.value === "3d";
+    canvas.hidden = !runtime.view3d;
+    ui.canvas.hidden = runtime.view3d;
+  } catch {
+    fallback();
+  } finally {
+    select.disabled = false;
+  }
 }
 
 function dailyTarget() {

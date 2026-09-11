@@ -55,6 +55,7 @@
               height="540"
               aria-label="Trò chơi quán trà đá có thể chơi được"
             ></canvas>
+            <canvas id="game-canvas-3d" width="960" height="540" hidden aria-label="Quán trà đá 3D"></canvas>
             <p id="order-caption" class="order-caption"></p>
 
             <div id="title-overlay" class="overlay">
@@ -87,6 +88,9 @@
           </div>
 
           <div class="control-panel">
+            <label class="view-control" for="view-mode">Góc nhìn
+              <select id="view-mode"><option value="2d">2D</option><option value="3d">3D</option></select>
+            </label>
             <div class="meta-row">
               <div class="meta-pill">
                 <span class="meta-label">Bàn</span>
