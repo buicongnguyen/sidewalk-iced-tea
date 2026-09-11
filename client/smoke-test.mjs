@@ -197,7 +197,10 @@ async function verifyCacheOwnership() {
     self:{addEventListener(name,callback){handlers[name]=callback;},clients:{claim(){}}},
     caches:{async keys(){return [sandbox.currentCache,'sidewalk-iced-tea-planb-v0','another-game-v4','offline-documents'];},async delete(key){deleted.push(key);return true;}},
   };
-  runInNewContext(await readFile(new URL('./sw.js',import.meta.url),'utf8')+'\nglobalThis.currentCache=CACHE_NAME;',sandbox);
+  runInNewContext(await readFile(new URL('./sw.js',import.meta.url),'utf8')+'\nglobalThis.currentCache=CACHE_NAME;globalThis.shell=APP_SHELL;',sandbox);
+  const scene=await readFile(new URL('./scene3d.js',import.meta.url),'utf8');
+  const eventImport=scene.match(/from ['"](.\/event-scene\.js\?v=\d+)['"]/);
+  assert.ok(eventImport&&sandbox.shell.includes(eventImport[1]),'versioned event renderer must be precached');
   let finished;
   handlers.activate({waitUntil(promise){finished=promise;}});
   await finished;

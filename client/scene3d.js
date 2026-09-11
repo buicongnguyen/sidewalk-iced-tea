@@ -2,7 +2,7 @@ import * as THREE from './vendor/three.module.js';
 import { GLTFLoader } from './vendor/GLTFLoader.js';
 import { RoomEnvironment } from './vendor/RoomEnvironment.js';
 import { DRINKS } from './campaign.mjs';
-import { createEventScene } from './event-scene.js';
+import { createEventScene } from './event-scene.js?v=21';
 
 let kitPromise;
 let eventKitPromise;

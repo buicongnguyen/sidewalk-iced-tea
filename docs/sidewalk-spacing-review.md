@@ -16,6 +16,7 @@
 - Labels retain their previous size. Model geometry, cup ownership, event timing, choice consequences, saved customer positions and economy rules are unchanged.
 - Pet heading follows the path tangent instead of flipping between two headings. Animation continues to use the paused simulation presentation clock and never mutates saved state.
 - Existing Blender meshes are reused; no binary asset rebuild or new dependency is needed for this layout change.
+- The modified event-rendering module has a versioned import and precache URL, preventing a still-fresh HTTP cache entry from supplying the previous layout during an upgrade.
 
 ## Verification
 

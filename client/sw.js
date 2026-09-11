@@ -62,6 +62,7 @@ const APP_SHELL = [
   "./events.mjs",
   "./event-data.mjs",
   "./event-scene.js",
+  "./event-scene.js?v=21",
   "./public/assets/3d/events-kit.glb",
   ...['Argument','Scooter','Car','Girl','PhoneGuest','Visitor','Dog','DogChew','Cat','CatCap','Musician','Parcel','Umbrella','Chess'].map(name=>`./public/assets/3d/events/${name}.png`),
   "./public/assets/drinks/tea.svg",
