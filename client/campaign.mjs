@@ -32,8 +32,10 @@ export function createCampaign(saved={}) {
   for(const batch of Array.isArray(saved.batches)?saved.batches:[]) {
     if(!batch || typeof batch!=='object')continue;
     if(!DRINKS[batch.drink] || !Number.isInteger(batch.id) || batch.id<1 || ids.has(batch.id))continue;
+    const remaining=batch.remaining===undefined?1:batch.remaining;
+    if(!Number.isInteger(remaining)||remaining<1||remaining>3)continue;
     ids.add(batch.id);
-    state.batches.push({...recipe(batch),id:batch.id,elapsed:number(batch.elapsed,0,0,10),duration:number(batch.duration,DRINKS[batch.drink].seconds,.5,10)});
+    state.batches.push({...recipe(batch),id:batch.id,remaining,elapsed:number(batch.elapsed,0,0,10),duration:number(batch.duration,DRINKS[batch.drink].seconds,.5,10)});
   }
   state.batches=state.batches.slice(0,capacity(state));
   state.nextBatchId=Math.max(state.nextBatchId,...state.batches.map(b=>b.id+1));
@@ -65,12 +67,13 @@ export function makeOrder(state,day) {
 export const capacity = state => state.extraSlot?2:1;
 export const ready = batch => batch.elapsed>=batch.duration;
 export const matches = (a,b) => ['drink','ice','sugar'].every(key=>a[key]===b[key]);
-export function prepare(state,value,day,fast=false) {
-  if(!DRINKS[value.drink] || DRINKS[value.drink].day>day || state.batches.length>=capacity(state))return null;
+export function prepare(state,value,day,fast=false,servings=1) {
+  if(!value||!DRINKS[value.drink] || DRINKS[value.drink].day>day || state.batches.length>=capacity(state))return null;
+  if(!Number.isInteger(servings)||servings<1||servings>3)return null;
   const item=recipe(value);
   if(item.drink==='tea'&&item.sugar!=='normal')return null;
   if(day<2&&item.ice!=='normal' || day<3&&item.sugar!=='normal')return null;
-  const batch={...item,id:state.nextBatchId++,elapsed:0,duration:DRINKS[item.drink].seconds*(fast?.65:1)};
+  const batch={...item,id:state.nextBatchId++,remaining:servings,elapsed:0,duration:DRINKS[item.drink].seconds*(1+.25*(servings-1))*(fast?.65:1)};
   state.batches.push(batch);return batch;
 }
 export function advancePreparation(state,seconds) {
@@ -85,7 +88,7 @@ export function advancePreparation(state,seconds) {
 export function deliver(state,customer,batchId) {
   const index=state.batches.findIndex(batch=>batch.id===batchId);
   const batch=state.batches[index];
-  if(!customer || customer.phase!=='waiting' || customer.rewardGranted || !customer.order || !batch || !ready(batch))return 'unavailable';
+  if(!customer || customer.phase!=='waiting' || customer.rewardGranted || !customer.order || !batch || !Number.isInteger(batch.remaining) || batch.remaining<1 || batch.remaining>3 || !ready(batch))return 'unavailable';
   if(!matches(batch,customer.order)) {
     if(!customer.rejectedBatches?.includes(batch.id)) {
       customer.rejectedBatches=[...(customer.rejectedBatches||[]),batch.id];
@@ -93,8 +96,9 @@ export function deliver(state,customer,batchId) {
     }
     return 'wrong';
   }
-  state.batches.splice(index,1);
-  // Consume the cup and lock the customer before any UI event can deliver twice.
+  batch.remaining--;
+  if(batch.remaining===0)state.batches.splice(index,1);
+  // Consume one portion and lock the customer before any UI event can deliver twice.
   customer.phase='being_served';customer.serveElapsed=0;
   state.streak++;state.bestStreak=Math.max(state.bestStreak,state.streak);
   const id=customer.order.regularId;

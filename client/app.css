@@ -469,7 +469,7 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline:2px solid 
 .order-list img { width:24px; height:36px; object-fit:contain; }
 .order-list span { white-space:pre-line; font-size:11px; line-height:1.25; }
 .story-mode [aria-pressed="true"] { outline:2px solid #237f70; outline-offset:-2px; }
-.preparation-row { display:grid; grid-template-rows:44px 58px; gap:4px; min-width:0; }
+.preparation-row { display:grid; grid-template-rows:44px 58px 44px; gap:6px; min-width:0; }
 .recipe-picker { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; padding:0; border:0; margin:0; min-width:0; }
 .recipe-picker legend { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 .recipe-picker label { display:flex; align-items:center; justify-content:center; gap:4px; min-width:0; height:44px; padding:3px; font-size:12px; border-bottom:3px solid transparent; cursor:pointer; }
@@ -478,7 +478,14 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline:2px solid 
 .recipe-picker input { position:absolute; opacity:0; width:1px; height:1px; }
 .recipe-picker label:has(:focus-visible) { outline:2px solid #24796b; }
 .recipe-picker img { width:24px; height:32px; flex:none; }
-.recipe-options { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 76px; gap:6px; align-items:end; }
+.recipe-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; align-items:end; }
+.preparation-actions { display:grid; grid-template-columns:minmax(0,1fr) 76px; gap:8px; align-items:end; }
+.serving-picker { display:grid; grid-template-columns:repeat(3,minmax(44px,1fr)); gap:4px; margin:0; border:0; padding:0; min-width:0; }
+.serving-picker legend { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+.serving-picker label { display:grid; place-items:center; height:44px; font-size:12px; border-bottom:3px solid transparent; cursor:pointer; }
+.serving-picker label:has(:checked) { background:#d8eae2; border-color:#257968; }
+.serving-picker label:has(:focus-visible) { outline:2px solid #24796b; }
+.serving-picker input { position:absolute; opacity:0; width:1px; height:1px; }
 .recipe-options label { display:flex; flex-direction:column; gap:2px; font-size:10px; line-height:12px; min-width:0; }
 .recipe-options select { width:100%; min-width:0; height:44px; font-size:16px; border:1px solid #b1c5bb; padding:4px 6px; background:white; border-radius:4px; }
 #prepare-drink,#deliver-drink { height:44px; min-width:0; background:#267d6c; color:white; border:0; border-radius:4px; padding:8px; font-size:14px; cursor:pointer; }

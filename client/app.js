@@ -1,4 +1,4 @@
-import * as story from './campaign.mjs';
+import * as story from './campaign.mjs?v=22';
 import * as street from './events.mjs';
 const IS_STORY = new URLSearchParams(location.search).get('mode') !== 'classic';
 const SAVE_SUFFIX = IS_STORY ? ':story' : '';
@@ -2662,7 +2662,7 @@ async function changeView() {
   select.disabled = true;
   try {
     if (select.value === "3d" && !runtime.scene3d) {
-      const { createScene3D } = await import("./scene3d.js?v=21");
+      const { createScene3D } = await import("./scene3d.js?v=22");
       runtime.scene3d = await createScene3D(canvas, TABLE_LAYOUT, serveTable, () => {
         fallback();
         // A lost context must not be selected again until the page is reloaded.
@@ -2738,36 +2738,43 @@ function bindStoryControls() {
   });
   document.getElementById('close-preparation').addEventListener('click',()=>drawer.close());
   drawer.addEventListener('close',focusDock);
+  for(const input of document.querySelectorAll('[name="drink"]'))input.addEventListener('change',updateHud);
   document.getElementById('prepare-drink').addEventListener('click',()=>{
     if(runtime.mode!=='playing'||runtime.settingsOpen||runtime.eventOpen)return;
     const value={drink:document.querySelector('[name="drink"]:checked').value,ice:document.getElementById('recipe-ice').value,sugar:document.getElementById('recipe-sugar').value};
-    const batch=story.prepare(gameState.campaign,value,gameState.dayNumber,gameState.serveLevel>0);
+    const servings=Number(document.querySelector('[name="servings"]:checked').value);
+    const batch=story.prepare(gameState.campaign,value,gameState.dayNumber,gameState.serveLevel>0,servings);
     if(!batch)return;
     runtime.selectedBatchId=batch.id;
     drawer.close();
-    runtime.audio.beep('tap');storyFeedback(`Đang pha ${story.DRINKS[batch.drink].name.toLowerCase()}.`);
+    runtime.audio.beep('tap');storyFeedback(`Đang pha ${batch.remaining} ly ${story.DRINKS[batch.drink].name.toLowerCase()}.`);
     void persistGameState('preparing');updateHud();
   });
   for(let index=0;index<2;index++)document.getElementById(`batch-${index}`).addEventListener('click',()=>{
     const batch=gameState.campaign.batches[index];
     runtime.selectedBatchId=batch?.id??null;
-    if(batch)storyFeedback(story.orderText(batch));
+    if(batch)storyFeedback(`${batch.remaining} ly còn lại. ${story.orderText(batch)}`);
     updateHud();
   });
   document.getElementById('discard-drink').addEventListener('click',()=>{
     if(runtime.mode!=='playing'||runtime.settingsOpen||runtime.eventOpen)return;
     gameState.campaign.batches=gameState.campaign.batches.filter(batch=>batch.id!==runtime.selectedBatchId);
-    runtime.selectedBatchId=null;storyFeedback('Đã dọn ly.');void persistGameState('discarded');updateHud();
+    runtime.selectedBatchId=null;storyFeedback('Đã dọn mẻ nước.');void persistGameState('discarded');updateHud();
   });
   document.getElementById('deliver-drink').addEventListener('click',()=>{
     if(runtime.mode!=='playing'||runtime.settingsOpen||runtime.eventOpen)return;
     const customer=gameState.customers.find(c=>c.id===runtime.selectedCustomerId);
-    const result=story.deliver(gameState.campaign,customer,runtime.selectedBatchId);
+    const batchId=runtime.selectedBatchId;
+    const result=story.deliver(gameState.campaign,customer,batchId);
     if(result==='wrong')storyFeedback('Chưa đúng món. Chọn lại khách hoặc pha lại.');
     if(result==='served') {
       finishService(customer,getTableState(customer.tableId));
       storyFeedback(`Chuỗi ${gameState.campaign.streak}${customer.order.regularId?' · '+story.REGULARS[customer.order.regularId].name+' +1':''}`);
-      runtime.selectedBatchId=null;runtime.selectedCustomerId=null;
+      const remaining=gameState.campaign.batches.find(b=>b.id===batchId);
+      runtime.selectedBatchId=remaining?.id??null;
+      runtime.selectedCustomerId=remaining?gameState.customers
+        .filter(c=>c.phase==='waiting'&&story.matches(c.order,remaining))
+        .sort((a,b)=>b.waitElapsed-a.waitElapsed)[0]?.id??null:null;
     }
     void persistGameState(result==='served'?'served':'order-check');updateHud();
   });
@@ -2816,8 +2823,8 @@ function updateStoryHud() {
   for(let index=0;index<2;index++) {
     const node=document.getElementById(`batch-${index}`),item=campaign.batches[index];
     const preferences=item?[item.ice==='less'?'Ít đá':'',item.sugar==='less'?'ít ngọt':''].filter(Boolean).join('/'):'';
-    node.textContent=item?[item.drink==='coffee'?'Cà phê':story.DRINKS[item.drink].name,preferences,story.ready(item)?'Xong':Math.ceil(item.duration-item.elapsed)+'s'].filter(Boolean).join('\n'):index>=story.capacity(campaign)?'Khóa':'Trống';
-    node.title=item?`${story.orderText(item)} ${story.ready(item)?'Sẵn sàng':'Đang pha'}`:index>=story.capacity(campaign)?'Mở thêm chỗ pha trong cài đặt':'Khay trống';
+    node.textContent=item?[item.drink==='coffee'?'Cà phê':story.DRINKS[item.drink].name,preferences,`${item.remaining} ly${story.ready(item)?'':' · '+Math.ceil(item.duration-item.elapsed)+'s'}`].filter(Boolean).join('\n'):index>=story.capacity(campaign)?'Khóa':'Trống';
+    node.title=item?`${item.remaining} ly còn lại. ${story.orderText(item)} ${story.ready(item)?'Sẵn sàng':'Đang pha'}`:index>=story.capacity(campaign)?'Mở thêm chỗ pha trong cài đặt':'Khay trống';
     node.setAttribute('aria-label',node.title);
     node.disabled=!item;node.setAttribute('aria-pressed',String(item?.id===runtime.selectedBatchId));
     node.style.setProperty('--brew-progress',item?`${Math.min(100,item.elapsed/item.duration*100)}%`:'0%');

@@ -16,8 +16,9 @@ try {
   });
   browser=await chromium.launch({headless:true});
   await mkdir('test-results',{recursive:true});
-  async function open(state,viewport={width:1280,height:950},three=false) {
+  async function open(state,viewport={width:1280,height:950},three=false,fallback=false) {
     const context=await browser.newContext({viewport,serviceWorkers:'block'});
+    if(fallback)await context.addInitScript(()=>Object.defineProperty(window,'indexedDB',{value:undefined}));
     await context.addInitScript(value=>{
       if(sessionStorage.getItem('story-test-seeded'))return;
       sessionStorage.setItem('story-test-seeded','1');
@@ -31,11 +32,12 @@ try {
     return page;
   }
   const snapshot=page=>page.evaluate(()=>window.__planBGame.getSnapshot());
-  async function choose(page,drink,ice='normal',sugar='normal') {
+  async function choose(page,drink,ice='normal',sugar='normal',servings=1) {
     await page.click('#open-preparation');
     await page.locator(`.recipe-picker label:has(input[value="${drink}"])`).click();
     if(await page.locator('#recipe-ice').isEnabled())await page.selectOption('#recipe-ice',ice);
     if(await page.locator('#recipe-sugar').isEnabled())await page.selectOption('#recipe-sugar',sugar);
+    await page.locator(`.serving-picker label:has(input[value="${servings}"])`).click();
   }
   let page=await open(base());
   await page.click('#start-button');
@@ -58,7 +60,47 @@ try {
   assert.equal((await snapshot(page)).coins,777);await page.context().close();
   console.log('PASS recipe mismatch, remake, pause, delivery, upgrade, reload and Classic isolation');
 
-  const campaign=rules.createCampaign({batches:[{id:1,drink:'lime',ice:'normal',sugar:'normal',elapsed:4,duration:3.5}]});
+  for(const quantity of [2,3]) {
+    const recipe={drink:'lime',ice:'less',sugar:'less'};
+    const guests=[1,2,3,4].map((id,index)=>({...customer(id, id===2?{drink:'coffee',ice:'normal',sugar:'less'}:recipe),
+      type:['asian_woman_mint','man','woman','old_man'][index],tableId:`table-story-${index<2?0:1}`,seatIndex:index%2,
+      x:(index<2?360:640)+(index%2?94:38),y:278}));
+    if(quantity===2)guests.pop();
+    const campaign=rules.createCampaign({extraSlot:true,batches:[{id:1,drink:'tea',remaining:1,elapsed:2,duration:2}]});
+    page=await open(base({dayNumber:3,nextCustomerId:5,customers:guests,campaign}),{width:quantity===2?320:390,height:quantity===2?568:844},quantity===3,quantity===2);
+    await page.click('#start-button');
+    await choose(page,'lime','less','less',quantity);
+    await page.screenshot({path:`test-results/batch-preparation-${quantity}.png`});
+    await page.click('#prepare-drink');
+    await page.waitForFunction(()=>window.__planBGame.getSnapshot().campaign.batches[1]?.elapsed>=window.__planBGame.getSnapshot().campaign.batches[1]?.duration);
+    assert.deepEqual(rules.recipe((await snapshot(page)).campaign.batches[1]),recipe);
+    await page.click('[data-customer-id="2"]');await page.click('#deliver-drink');
+    state=await snapshot(page);assert.equal(state.totalServed,0);assert.equal(state.campaign.batches[1].remaining,quantity);
+    await page.click('[data-customer-id="1"]');await page.click('#deliver-drink');
+    await page.click('#pause-button');
+    state=await snapshot(page);const coins=state.coins,batchId=state.campaign.batches[1].id;
+    assert.equal(state.selectedCustomerId,3);assert.equal(await page.locator('#batch-1').getAttribute('aria-pressed'),'true');
+    assert.equal(state.campaign.batches[1].remaining,quantity-1);assert.equal(state.totalServed,1);
+    assert.ok((await page.locator('#batch-1').innerText()).includes(`${quantity-1} ly`));
+    await page.screenshot({path:`test-results/batch-remaining-${quantity}.png`,style:'#title-overlay,#toast {visibility:hidden!important}'});
+    await page.reload();await page.waitForFunction(()=>window.__planBGame);
+    state=await snapshot(page);assert.equal(state.campaign.batches[1].remaining,quantity-1);assert.equal(state.campaign.batches[1].id,batchId);assert.equal(state.coins,coins);
+    await page.click('#start-button');await page.click('#batch-1');await page.click('[data-customer-id="3"]');
+    for(let served=2;served<=quantity;served++) {
+      await page.click('#deliver-drink');state=await snapshot(page);
+      assert.equal(state.totalServed,served);
+      if(served<quantity) {
+        assert.equal(state.selectedCustomerId,4);assert.equal(await page.locator('#batch-1').getAttribute('aria-pressed'),'true');
+        assert.equal(state.campaign.batches[1].remaining,quantity-served);
+      }
+    }
+    assert.equal(state.campaign.batches.length,1);assert.equal(state.campaign.batches[0].id,1);assert.equal(state.campaign.batches[0].remaining,1);
+    assert.equal(state.customers.find(c=>c.id===2).phase,'waiting');
+    await page.click('#discard-drink');assert.equal((await snapshot(page)).campaign.batches.length,0);
+    await page.context().close();console.log('PASS multi-cup preparation, exact matching, selected batch, reload and depletion',quantity);
+  }
+
+  const campaign=rules.createCampaign({batches:[{id:1,drink:'lime',ice:'normal',sugar:'normal',remaining:3,elapsed:6,duration:5.25}]});
   page=await open(base({dayNumber:1,levelElapsed:179.8,campaign,customers:[customer(1,{drink:'lime',ice:'normal',sugar:'normal'})]}));
   await page.click('#start-button');
   await page.waitForFunction(()=>window.__planBGame.getSnapshot().campaign.closing);

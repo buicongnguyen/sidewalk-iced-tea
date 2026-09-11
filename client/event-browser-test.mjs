@@ -139,11 +139,17 @@ try {
     await page.click('#event-continue');
     await page.click('#open-preparation');
     await page.locator('.recipe-picker label:has(input[value="tea"])').click();
+    assert.equal(await page.locator('[name="servings"]:checked').inputValue(),'2');
+    for(const label of await page.locator('.serving-picker label').all()) {
+      const box=await label.boundingBox();assert.ok(box.width>=44&&box.height>=44&&box.x>=0&&box.x+box.width<=width);
+    }
+    await page.locator('.serving-picker label:has(input[value="3"])').click();
     const drawer=await page.locator('#preparation-dialog').boundingBox();
     assert.ok(drawer.y>=0&&drawer.y+drawer.height<=height+1);
     await page.screenshot({path:`test-results/preparation-${width}x${height}.png`});
     await page.click('#prepare-drink');assert.equal(await page.locator('#preparation-dialog').isVisible(),false);
     await page.waitForFunction(()=>window.__planBGame.getSnapshot().campaign.batches[0]?.elapsed>=2);
+    assert.equal((await snap(page)).campaign.batches[0].remaining,3);
     await page.context().close();console.log('PASS narrow/landscape choices and preparation drawer',width,height);
   }
   let page=await open('friendly-dog',{width:390,height:844},false,0);

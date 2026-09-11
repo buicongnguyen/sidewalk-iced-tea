@@ -54,4 +54,43 @@ check('stars reward target and accuracy without negative outcomes',()=>{
   assert.equal(game.dayStars(state,6,1,1),2);
   assert.equal(game.dayStars(state,2,0,1),1);
 });
+check('one preparation serves two or three exact orders, once per customer',()=>{
+  for(const size of [2,3])for(const drink of Object.keys(game.DRINKS)) {
+    const state=game.createCampaign(),order=game.recipe({drink,ice:'less',sugar:drink==='tea'?'normal':'less'});
+    const batch=game.prepare(state,order,3,false,size);
+    const guest=()=>({phase:'waiting',order:{...order},waitElapsed:10});
+    assert.equal(batch.remaining,size);
+    assert.equal(game.deliver(state,guest(),batch.id),'unavailable');
+    assert.equal(game.prepare(state,order,3),null,'a batch occupies one slot until empty');
+    game.advancePreparation(state,10);
+    for(const field of ['drink','ice',...(drink==='tea'?[]:['sugar'])]) {
+      const wrong=guest();wrong.order[field]=field==='drink'?(drink==='tea'?'lime':'tea'):'normal';
+      assert.equal(game.deliver(state,wrong,batch.id),'wrong');assert.equal(batch.remaining,size);
+    }
+    for(let left=size-1;left>=0;left--) {
+      const customer=guest();
+      assert.equal(game.deliver(state,customer,batch.id),'served');
+      assert.equal(game.deliver(state,customer,batch.id),'unavailable');
+      assert.equal(batch.remaining,left);assert.equal(state.batches.length,left?1:0);
+    }
+    assert.equal(state.streak,size);assert.equal(game.deliver(state,guest(),batch.id),'unavailable');
+  }
+});
+check('batch quantities migrate, persist, validate and reset without refilling',()=>{
+  const legacy=game.createCampaign({batches:[{id:1,drink:'tea',elapsed:2,duration:2}]});
+  assert.equal(legacy.batches[0].remaining,1);
+  for(const remaining of [0,-1,4,1.5,NaN,Infinity,null,'2']) {
+    assert.equal(game.createCampaign({batches:[{id:1,drink:'tea',remaining}]}).batches.length,0);
+  }
+  const state=game.createCampaign();
+  for(const size of [0,-1,4,1.5,NaN,Infinity,null,'2'])assert.equal(game.prepare(state,{drink:'tea'},1,false,size),null);
+  assert.equal(state.nextBatchId,1);
+  const batch=game.prepare(state,{drink:'coffee'},3,true,3);
+  assert.equal(batch.duration,5*1.5*.65);game.advancePreparation(state,10);
+  game.deliver(state,{phase:'waiting',order:game.recipe(batch)},batch.id);
+  const restored=game.createCampaign(JSON.parse(JSON.stringify(state)));
+  assert.equal(restored.batches[0].remaining,2);assert.ok(game.ready(restored.batches[0]));
+  assert.deepEqual(restored,state);
+  game.resetDay(restored);assert.equal(restored.batches.length,0);
+});
 console.log(JSON.stringify({checks}));
