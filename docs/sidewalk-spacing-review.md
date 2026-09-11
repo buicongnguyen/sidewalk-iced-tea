@@ -17,6 +17,7 @@
 - Pet heading follows the path tangent instead of flipping between two headings. Animation continues to use the paused simulation presentation clock and never mutates saved state.
 - Existing Blender meshes are reused; no binary asset rebuild or new dependency is needed for this layout change.
 - The modified event-rendering module has a versioned import and precache URL, preventing a still-fresh HTTP cache entry from supplying the previous layout during an upgrade.
+- A browser HTTP-cache probe reproduced an old offline page being copied into a newly named cache. Precache requests now use `cache: 'reload'`; the same probe receives the new response, and the smoke suite checks this property for every precached request.
 
 ## Verification
 

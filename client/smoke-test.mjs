@@ -192,20 +192,25 @@ async function runSmoke(serverUrl) {
 }
 
 async function verifyCacheOwnership() {
-  const handlers={},deleted=[];
+  const handlers={},deleted=[],installed=[];
   const sandbox={
-    self:{addEventListener(name,callback){handlers[name]=callback;},clients:{claim(){}}},
-    caches:{async keys(){return [sandbox.currentCache,'sidewalk-iced-tea-planb-v0','another-game-v4','offline-documents'];},async delete(key){deleted.push(key);return true;}},
+    self:{addEventListener(name,callback){handlers[name]=callback;},skipWaiting(){},clients:{claim(){}}},
+    Request:class {constructor(url,options){this.url=url;Object.assign(this,options);}},
+    caches:{async open(){return {async addAll(requests){installed.push(...requests);}};},async keys(){return [sandbox.currentCache,'sidewalk-iced-tea-planb-v0','another-game-v4','offline-documents'];},async delete(key){deleted.push(key);return true;}},
   };
   runInNewContext(await readFile(new URL('./sw.js',import.meta.url),'utf8')+'\nglobalThis.currentCache=CACHE_NAME;globalThis.shell=APP_SHELL;',sandbox);
   const scene=await readFile(new URL('./scene3d.js',import.meta.url),'utf8');
   const eventImport=scene.match(/from ['"](.\/event-scene\.js\?v=\d+)['"]/);
   assert.ok(eventImport&&sandbox.shell.includes(eventImport[1]),'versioned event renderer must be precached');
   let finished;
+  handlers.install({waitUntil(promise){finished=promise;}});
+  await finished;
+  assert.equal(installed.length,sandbox.shell.length);
+  assert.ok(installed.every(request=>request.cache==='reload'),'precache must bypass stale HTTP entries');
   handlers.activate({waitUntil(promise){finished=promise;}});
   await finished;
   assert.deepEqual(deleted,['sidewalk-iced-tea-planb-v0']);
-  console.log('PASS service-worker activation preserves other apps and the current cache');
+  console.log('PASS precache refresh, versioned modules and service-worker cache ownership');
 }
 
 async function verifyMissingAsset(serverUrl) {

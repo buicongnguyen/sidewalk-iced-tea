@@ -92,7 +92,10 @@ const APP_SHELL = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)),
+    // A new offline cache must not inherit still-fresh files from the HTTP cache.
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.addAll(APP_SHELL.map(path => new Request(path, {cache: 'reload'}))),
+    ),
   );
   self.skipWaiting();
 });
