@@ -1,6 +1,9 @@
 import { spawn } from "node:child_process";
 import process from "node:process";
 import { chromium } from "playwright";
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {runInNewContext} from 'node:vm';
 
 const SERVER_READY_PATTERN =
   /Sidewalk Iced Tea Plan B available at (http:\/\/[^\s]+)/;
@@ -8,6 +11,7 @@ const SERVER_READY_PATTERN =
 let serverProcess;
 
 try {
+  await verifyCacheOwnership();
   serverProcess = spawn(process.execPath, ["server.js"], {
     cwd: process.cwd(),
     env: {
@@ -185,6 +189,20 @@ async function runSmoke(serverUrl) {
   } finally {
     await browser.close();
   }
+}
+
+async function verifyCacheOwnership() {
+  const handlers={},deleted=[];
+  const sandbox={
+    self:{addEventListener(name,callback){handlers[name]=callback;},clients:{claim(){}}},
+    caches:{async keys(){return [sandbox.currentCache,'sidewalk-iced-tea-planb-v0','another-game-v4','offline-documents'];},async delete(key){deleted.push(key);return true;}},
+  };
+  runInNewContext(await readFile(new URL('./sw.js',import.meta.url),'utf8')+'\nglobalThis.currentCache=CACHE_NAME;',sandbox);
+  let finished;
+  handlers.activate({waitUntil(promise){finished=promise;}});
+  await finished;
+  assert.deepEqual(deleted,['sidewalk-iced-tea-planb-v0']);
+  console.log('PASS service-worker activation preserves other apps and the current cache');
 }
 
 async function verifyMissingAsset(serverUrl) {

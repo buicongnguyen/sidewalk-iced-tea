@@ -203,7 +203,7 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
     const scale=Math.min(1,960/Math.max(width,height));
     renderer.setSize(Math.round(width*scale),Math.round(height*scale),false);
     portrait=layout[0]?.id.startsWith('table-story-')&&width/height<1.3;
-    const halfWidth=Math.max(portrait?2.9:6.8,storyView&&!portrait?width/height*3.9:0),focusX=portrait?.1:0;
+    const halfWidth=Math.max(portrait?2.9:6.8,storyView&&!portrait?width/height*4.1:0),focusX=portrait?.1:0;
     camera.left=-halfWidth;camera.right=halfWidth;
     camera.top=halfWidth*height/width;camera.bottom=-camera.top;
     camera.position.set(focusX,7.8,9);camera.lookAt(focusX,.25,0);
