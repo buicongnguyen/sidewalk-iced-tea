@@ -9,6 +9,7 @@
     "rules": "node campaign-test.mjs",
     "story": "node story-test.mjs",
     "mobile": "node mobile-test.mjs",
+    "events": "node events-test.mjs && node event-browser-test.mjs",
     "smoke": "node smoke-test.mjs"
   },
   "devDependencies": {

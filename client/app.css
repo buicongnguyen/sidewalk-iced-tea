@@ -442,7 +442,7 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline:2px solid 
 .story-mode * { letter-spacing:0; }
 .story-mode .app-shell { height:100dvh; min-height:0; padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left)); }
 .story-mode .game-shell { width:min(100%,1120px); height:100%; }
-.story-mode .game-card { height:100%; min-height:0; max-height:none; display:grid; grid-template-rows:44px 24px minmax(0,1fr) auto; gap:6px; background:none; border:0; border-radius:0; padding:0; box-shadow:none; }
+.story-mode .game-card { height:100%; min-height:0; max-height:none; display:grid; grid-template-rows:44px 20px minmax(0,1fr) 96px; gap:4px; background:none; border:0; border-radius:0; padding:0; box-shadow:none; }
 .story-mode .status-chip { background:none; color:#24413b; }
 #chapter-band { display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; font-size:13px; line-height:20px; }
 #chapter-title { white-space:nowrap; }
@@ -462,11 +462,11 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline:2px solid 
 .story-mode .overlay-actions { margin-top:10px; flex-direction:row; }
 .story-mode .order-caption { display:none !important; }
 .story-mode .toast { padding:6px 10px; font-size:12px; border-radius:4px; min-width:0; width:max-content; max-width:90%; background:#183b35ed; }
-#story-panel { display:grid; grid-template-rows:56px 106px 54px 28px; gap:4px; min-width:0; border-top:1px solid #9fbdb0; padding-top:6px; }
+#story-panel { position:relative; display:grid; grid-template-rows:48px 44px; gap:4px; min-width:0; }
 .order-list { display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; min-width:0; max-width:100%; scrollbar-width:thin; scroll-snap-type:x proximity; }
 .order-list:empty::before { content:'Đợi khách'; align-self:center; color:#78857f; font-size:12px; }
-.order-list button { display:flex; align-items:center; gap:4px; flex:0 0 150px; height:50px; min-width:0; padding:3px 5px; background:#fff; border:1px solid #becbc5; border-radius:4px; color:#233e35; text-align:left; scroll-snap-align:start; cursor:pointer; }
-.order-list img { width:26px; height:40px; object-fit:contain; }
+.order-list button { display:flex; align-items:center; gap:4px; flex:0 0 150px; height:44px; min-width:0; padding:2px 5px; background:#fff; border:1px solid #becbc5; border-radius:4px; color:#233e35; text-align:left; scroll-snap-align:start; cursor:pointer; }
+.order-list img { width:24px; height:36px; object-fit:contain; }
 .order-list span { white-space:pre-line; font-size:11px; line-height:1.25; }
 .story-mode [aria-pressed="true"] { outline:2px solid #237f70; outline-offset:-2px; }
 .preparation-row { display:grid; grid-template-rows:44px 58px; gap:4px; min-width:0; }
@@ -482,37 +482,27 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline:2px solid 
 .recipe-options label { display:flex; flex-direction:column; gap:2px; font-size:10px; line-height:12px; min-width:0; }
 .recipe-options select { width:100%; min-width:0; height:44px; font-size:16px; border:1px solid #b1c5bb; padding:4px 6px; background:white; border-radius:4px; }
 #prepare-drink,#deliver-drink { height:44px; min-width:0; background:#267d6c; color:white; border:0; border-radius:4px; padding:8px; font-size:14px; cursor:pointer; }
-#deliver-drink { background:#c6574c; height:54px; }
-.tray-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px 76px; gap:4px; min-width:0; }
-.batch-slot { position:relative; min-width:0; height:54px; border:1px solid #bac8bf; border-radius:4px; background:#fff; color:#25493d; font-size:11px; line-height:13px; padding:3px; white-space:pre-line; overflow-wrap:anywhere; cursor:pointer; }
+#deliver-drink { background:#c6574c; height:44px; font-size:12px; }
+.tray-row { display:grid; grid-template-columns:44px minmax(0,1fr) minmax(0,1fr) 44px 64px; gap:4px; min-width:0; }
+.batch-slot { position:relative; min-width:0; height:44px; border:1px solid #bac8bf; border-radius:4px; background:#fff; color:#25493d; font-size:10px; line-height:12px; padding:3px; white-space:pre-line; overflow-wrap:anywhere; cursor:pointer; }
 .batch-slot::after { content:''; position:absolute; bottom:0; left:0; height:3px; width:var(--brew-progress,0%); background:#3d9680; }
-#discard-drink { height:54px; background:transparent; }
-#story-feedback { min-width:0; height:28px; margin:0; font-size:12px; line-height:14px; color:#54645b; overflow:hidden; }
+#discard-drink { height:44px; background:transparent; }
+#story-feedback { position:absolute; bottom:104px; left:8px; max-width:calc(100% - 16px); margin:0; padding:4px 8px; font-size:11px; line-height:15px; color:#233b35; background:#fffffff0; border-radius:4px; pointer-events:none; }
+#story-feedback:empty { display:none; }
 .story-mode button:disabled { opacity:.45; cursor:default; }
 @media(min-width:900px) {
-  .story-mode .app-shell { height:auto; min-height:100dvh; padding:12px; }
-  .story-mode .game-card { height:auto; grid-template-columns:minmax(0,1fr)320px; grid-template-rows:44px 24px auto; align-items:start; }
-  .story-mode .game-header,.story-mode #chapter-band { grid-column:1 / -1; }
-  .story-mode .playfield-frame { height:auto; aspect-ratio:16/10; min-height:400px; }
-  .story-mode #story-panel { border-top:0; border-left:1px solid #becfc5; padding:0 0 0 12px; grid-template-rows:120px 106px 54px 28px; }
-  .story-mode .order-list { flex-wrap:wrap; overflow-y:auto; align-content:start; }
-  .story-mode .order-list button { flex:1 0 140px; }
+  .story-mode .app-shell { padding:12px; }
+  .story-mode .game-shell { width:min(100%,1440px); }
+  .story-mode #story-panel { grid-template-columns:minmax(0,1fr) 360px; grid-template-rows:48px; }
+  .story-mode .game-card { grid-template-rows:44px 20px minmax(0,1fr) 48px; }
+  #story-feedback { bottom:56px; }
 }
 @media(max-width:899px) and (orientation:landscape) {
-  .story-mode .app-shell { padding:max(6px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left)); }
-  .story-mode .game-card { grid-template-columns:minmax(0,1fr) minmax(260px,42%); grid-template-rows:44px 20px minmax(0,1fr); gap:4px 8px; }
-  .story-mode .game-header,.story-mode #chapter-band { grid-column:1 / -1; }
-  .story-mode #story-panel { align-self:start; border-top:0; padding:0; grid-template-rows:50px 100px 50px 20px; gap:2px; }
-  .story-mode .preparation-row { grid-template-rows:44px 54px; gap:2px; }
-  .story-mode .recipe-options { grid-template-columns:minmax(0,1fr) minmax(0,1fr) 58px; gap:4px; }
-  .story-mode .recipe-options label { line-height:10px; gap:0; }
-  .story-mode .recipe-picker label { font-size:11px; gap:2px; }
-  .story-mode .recipe-picker img { width:20px; height:28px; }
-  .story-mode .tray-row { grid-template-columns:minmax(0,1fr) minmax(0,1fr) 36px 62px; gap:3px; }
-  .story-mode .batch-slot,.story-mode #deliver-drink,.story-mode #discard-drink { height:50px; }
-  .story-mode #discard-drink { width:36px; padding:7px; }
-  .story-mode #deliver-drink { padding:4px; font-size:13px; white-space:nowrap; }
-  .story-mode #story-feedback { height:20px; line-height:10px; font-size:10px; }
+  .story-mode .app-shell { padding:max(4px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(4px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left)); }
+  .story-mode .game-card { grid-template-columns:minmax(0,1fr); grid-template-rows:44px minmax(0,1fr) 48px; }
+  .story-mode #chapter-band { position:absolute; top:50px; left:16px; right:16px; z-index:1; pointer-events:none; }
+  .story-mode #story-panel { grid-template-columns:minmax(0,1fr) 304px; grid-template-rows:48px; }
+  .story-mode #story-feedback { bottom:56px; }
 }
 @media(max-width:350px) and (orientation:portrait) {
   .game-header { gap:4px; }
@@ -523,3 +513,25 @@ button:focus-visible, a:focus-visible, select:focus-visible { outline:2px solid 
   .story-mode .overlay-card h1 { font-size:18px; margin:3px 0; }
   .story-mode .overlay-card p { font-size:12px; line-height:1.3; }
 }
+#open-preparation { display:grid; place-items:center; width:44px; height:44px; padding:10px; border:0; border-radius:4px; background:#267d6c; cursor:pointer; }
+#open-preparation img { width:24px; height:24px; filter:invert(1); }
+#open-preparation span { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+#preparation-dialog,#event-dialog { color:#233c36; background:#f8fbfa; border:1px solid #b7cbc3; border-radius:8px; width:min(420px,calc(100% - 20px)); max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow:auto; padding:14px; overscroll-behavior:contain; }
+#preparation-dialog { margin:auto auto max(10px,env(safe-area-inset-bottom)); }
+#preparation-dialog::backdrop { background:#16382f30; }
+#event-dialog::backdrop { background:#16382f60; }
+#preparation-order { font-size:13px; line-height:1.4; margin:8px 0; }
+#preparation-dialog .settings-heading,#event-dialog .settings-heading { top:-14px; margin:0; }
+#event-dialog .settings-heading h2 { font-size:18px; }
+#event-portrait { display:block; width:100%; height:130px; object-fit:contain; background:#e2efec; border-radius:4px; margin:10px 0; }
+#event-text { font-size:15px; line-height:1.55; margin:12px 0; }
+#event-effect { font-size:12px; color:#296a59; line-height:1.5; }
+#event-choices { display:grid; gap:6px; }
+#event-choices button,#event-continue { text-align:left; min-height:44px; padding:10px 12px; color:#234338; background:#fff; border:1px solid #b3cbbf; border-radius:4px; font-size:14px; line-height:1.4; cursor:pointer; }
+#event-continue { width:100%; background:#267d6c; color:white; text-align:center; }
+#street-event { position:absolute; top:30px; left:8px; z-index:2; max-width:calc(100% - 16px); min-height:44px; padding:8px 12px; border:1px solid #fff; border-radius:4px; background:#b74755; color:white; box-shadow:0 2px 8px #0002; font-size:12px; line-height:1.3; cursor:pointer; }
+#street-progress,#street-journal { margin:0; font-size:13px; line-height:1.5; }
+#street-journal summary { cursor:pointer; min-height:44px; align-content:center; }
+#street-history { padding-left:20px; max-height:180px; overflow:auto; }
+#street-history li { margin:8px 0; }
+@media(max-height:450px) { #event-portrait { height:72px; } #event-dialog { width:min(540px,calc(100% - 20px)); } }

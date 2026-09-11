@@ -32,6 +32,7 @@ try {
   }
   const snapshot=page=>page.evaluate(()=>window.__planBGame.getSnapshot());
   async function choose(page,drink,ice='normal',sugar='normal') {
+    await page.click('#open-preparation');
     await page.locator(`.recipe-picker label:has(input[value="${drink}"])`).click();
     if(await page.locator('#recipe-ice').isEnabled())await page.selectOption('#recipe-ice',ice);
     if(await page.locator('#recipe-sugar').isEnabled())await page.selectOption('#recipe-sugar',sugar);

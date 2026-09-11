@@ -1,4 +1,5 @@
 import * as story from './campaign.mjs';
+import * as street from './events.mjs';
 const IS_STORY = new URLSearchParams(location.search).get('mode') !== 'classic';
 const SAVE_SUFFIX = IS_STORY ? ':story' : '';
 const GAME_VERSION = 1;
@@ -120,6 +121,7 @@ const BASE_ASSET_PATHS = {
 
 const ASSET_PATHS = {
   ...BASE_ASSET_PATHS,
+  ...(IS_STORY?Object.fromEntries(street.PORTRAITS.map(name=>['event_'+name,`./public/assets/3d/events/${name}.png`])):{}),
   ...buildCustomerBaseAssetPaths(),
   ...buildWalkAssetPaths(),
   ...buildServedAssetPaths(),
@@ -157,6 +159,7 @@ const TABLE_LAYOUT = buildTableLayout();
 const runtime = {
   ready: false,
   settingsOpen: false,
+  eventOpen: false,
   sceneTimestamp: 0,
   selectedCustomerId: null,
   selectedBatchId: null,
@@ -216,6 +219,7 @@ async function init() {
 function bindEvents() {
   bindSettings();
   bindStoryControls();
+  bindStreetControls();
   ui.canvas.addEventListener("pointerdown", handleCanvasPointer);
   document.getElementById("view-mode").addEventListener("change", changeView);
   document.getElementById("view-zoom").addEventListener("input", event => runtime.scene3d?.setZoom(event.target.value));
@@ -295,6 +299,7 @@ function createDefaultState() {
     coins: 0,
     saveRevision: 0,
     campaign: IS_STORY ? story.createCampaign() : undefined,
+    street: IS_STORY ? street.createStreet() : undefined,
     score: 0,
     tipCoins: 0,
     totalServed: 0,
@@ -345,8 +350,9 @@ function restoreState(saved) {
     ...base,
     version: GAME_VERSION,
     campaign: IS_STORY ? story.createCampaign(saved.campaign) : undefined,
+    street: IS_STORY ? street.createStreet(saved.street) : undefined,
     saveRevision: Math.max(0,Math.floor(asNumber(saved.saveRevision,0))),
-    coins: asNumber(saved.coins, base.coins),
+    coins: Math.max(0,asNumber(saved.coins, base.coins)),
     score: asNumber(saved.score, base.score),
     tipCoins: asNumber(saved.tipCoins, base.tipCoins),
     totalServed: asNumber(saved.totalServed, base.totalServed),
@@ -629,7 +635,7 @@ function frameLoop(timestamp) {
   const deltaSeconds = Math.min((timestamp - runtime.lastFrame) / 1000, 0.25);
   runtime.lastFrame = timestamp;
 
-  if (runtime.mode === "playing" && !runtime.settingsOpen && !document.hidden) {
+  if (runtime.mode === "playing" && !runtime.settingsOpen && !runtime.eventOpen && !document.hidden) {
     runtime.accumulator += deltaSeconds;
     runtime.autoSaveTimer += deltaSeconds;
 
@@ -658,6 +664,7 @@ function updateLogic(deltaSeconds) {
 
   updateWeather(deltaSeconds);
   if (IS_STORY) {
+    if(street.tickStreet(gameState,deltaSeconds))void persistGameState('street-tick');
     const completed=story.advancePreparation(gameState.campaign,deltaSeconds);
     if(completed.length) {
       runtime.audio.beep('ready');
@@ -766,6 +773,7 @@ function resetLevelProgress() {
   gameState.nextWeatherRollIn = randomInRange(...WEATHER_WINDOW);
   gameState.spawnTimer = IS_STORY ? 2 : randomSpawnInterval(1);
   if (IS_STORY) gameState.nextWeatherRollIn=gameState.dayNumber>=4?60:9999;
+  if (IS_STORY) street.tickStreet(gameState,0);
   clearLevelBoard();
 }
 
@@ -1030,6 +1038,7 @@ function finishService(customer, table) {
   let basePrice=1;
   if (IS_STORY) {
     tipGain=(waitTime<=12?1:0)+(gameState.campaign.streak%3===0?1:0);
+    if(gameState.street.trust>=4&&gameState.campaign.streak%3===0)tipGain++;
     scoreGain=gameState.campaign.streak;
     basePrice=story.DRINKS[customer.order.drink].price;
   }
@@ -1093,7 +1102,7 @@ function handleCanvasPointer(event) {
 }
 
 function serveTable(tableId) {
-  if(runtime.settingsOpen)return;
+  if(runtime.settingsOpen||runtime.eventOpen)return;
   if (runtime.mode !== "playing") return;
   const tableLayout = getTableLayout(tableId);
   if (!tableLayout) return;
@@ -1261,7 +1270,7 @@ function buyUpgrade(kind) {
 }
 
 function togglePause() {
-  if (runtime.settingsOpen) return;
+  if (runtime.settingsOpen || runtime.eventOpen) return;
   if (runtime.mode === "title") {
     return;
   }
@@ -1308,7 +1317,7 @@ async function handleVisibilityChange() {
     return;
   }
 
-  if (!runtime.hiddenStartedAt || runtime.mode !== "playing" || runtime.settingsOpen) {
+  if (!runtime.hiddenStartedAt || runtime.mode !== "playing" || runtime.settingsOpen || runtime.eventOpen) {
     runtime.hiddenStartedAt = null;
     runtime.lastFrame = 0;
     return;
@@ -1360,9 +1369,9 @@ function applyResumeSimulation(elapsedSeconds) {
 }
 
 function renderScene(timestamp) {
-  if (!runtime.sceneTimestamp || (runtime.mode === 'playing' && !runtime.settingsOpen)) runtime.sceneTimestamp=timestamp;
+  if (!runtime.sceneTimestamp || (runtime.mode === 'playing' && !runtime.settingsOpen && !runtime.eventOpen)) runtime.sceneTimestamp=timestamp;
   if (runtime.view3d && runtime.scene3d) {
-    runtime.scene3d.render(gameState, timestamp, runtime.mode === "playing" && !runtime.settingsOpen);
+    runtime.scene3d.render(gameState, timestamp, runtime.mode === "playing" && !runtime.settingsOpen && !runtime.eventOpen);
     renderToast();
     return;
   }
@@ -1370,6 +1379,11 @@ function renderScene(timestamp) {
   drawRoom();
   drawTables();
   drawCustomers(runtime.sceneTimestamp);
+  if(IS_STORY&&gameState.street.active&&!gameState.levelComplete) {
+    const asset=street.presentation(gameState.street).portrait;
+    const sprite=runtime.assets.get('event_'+asset);
+    if(sprite)ctx.drawImage(sprite,250,326,180,150);
+  }
   drawFloatingTexts();
 
   if (gameState.weatherState === "rain") {
@@ -2287,7 +2301,7 @@ function currentServeTime() {
 function getSpawnRateMultiplier() {
   if (IS_STORY) {
     const rush=gameState.timeOfDay==='afternoon'?1.5:1;
-    return rush*(gameState.weatherState==='rain'?(gameState.umbrellaOwned?1:.65):1);
+    return rush*gameState.street.modifier.value*(gameState.weatherState==='rain'?(gameState.umbrellaOwned?1:.65):1);
   }
   if (gameState.weatherState !== "rain") {
     return 1;
@@ -2592,12 +2606,14 @@ function exposeDebugState() {
     getSnapshot() {
       return {
         campaign: IS_STORY ? structuredClone(gameState.campaign) : null,
+        street: IS_STORY ? structuredClone(gameState.street) : null,
         gameMode: IS_STORY ? 'story' : 'classic',
         selectedCustomerId: runtime.selectedCustomerId,
         view: runtime.view3d ? "3d" : "2d",
         renderer: runtime.scene3d?.diagnostics() ?? null,
         mode: runtime.mode,
         settingsOpen: runtime.settingsOpen,
+        eventOpen: runtime.eventOpen,
         saveStatus: runtime.saveStatus,
         tables: structuredClone(gameState.tables),
         customers: structuredClone(gameState.customers),
@@ -2646,7 +2662,7 @@ async function changeView() {
   select.disabled = true;
   try {
     if (select.value === "3d" && !runtime.scene3d) {
-      const { createScene3D } = await import("./scene3d.js?v=19");
+      const { createScene3D } = await import("./scene3d.js?v=20");
       runtime.scene3d = await createScene3D(canvas, TABLE_LAYOUT, serveTable, () => {
         fallback();
         // A lost context must not be selected again until the page is reloaded.
@@ -2675,6 +2691,8 @@ function dailyTarget() {
 
 function storyFeedback(text) {
   document.getElementById('story-feedback').textContent=text;
+  clearTimeout(runtime.feedbackTimer);
+  runtime.feedbackTimer=setTimeout(()=>{document.getElementById('story-feedback').textContent='';},3500);
 }
 
 function compactNumber(value) {
@@ -2685,7 +2703,7 @@ function compactNumber(value) {
 function bindSettings() {
   const dialog=document.getElementById('settings-dialog');
   document.getElementById('settings-button').addEventListener('click',()=>{
-    if(dialog.open)return;
+    if(dialog.open||runtime.eventOpen)return;
     runtime.settingsOpen=true;
     runtime.lastFrame=0;runtime.accumulator=0;
     dialog.showModal();
@@ -2711,25 +2729,38 @@ function bindStoryControls() {
   document.querySelector('.streak-status').hidden=!IS_STORY;
   document.getElementById('upgrade-slot').hidden=!IS_STORY;
   if(!IS_STORY){document.getElementById('game-subtitle').textContent='Classic';return;}
+  const drawer=document.getElementById('preparation-dialog');
+  document.getElementById('open-preparation').addEventListener('click',()=>{
+    if(runtime.mode!=='playing'||runtime.settingsOpen||runtime.eventOpen)return;
+    const customer=gameState.customers.find(c=>c.id===runtime.selectedCustomerId);
+    document.getElementById('preparation-order').textContent=customer?.orderText||'Pha sẵn cho khách';
+    drawer.showModal();
+  });
+  document.getElementById('close-preparation').addEventListener('click',()=>drawer.close());
+  drawer.addEventListener('close',focusDock);
   document.getElementById('prepare-drink').addEventListener('click',()=>{
-    if(runtime.mode!=='playing'||runtime.settingsOpen)return;
+    if(runtime.mode!=='playing'||runtime.settingsOpen||runtime.eventOpen)return;
     const value={drink:document.querySelector('[name="drink"]:checked').value,ice:document.getElementById('recipe-ice').value,sugar:document.getElementById('recipe-sugar').value};
     const batch=story.prepare(gameState.campaign,value,gameState.dayNumber,gameState.serveLevel>0);
     if(!batch)return;
     runtime.selectedBatchId=batch.id;
+    drawer.close();
     runtime.audio.beep('tap');storyFeedback(`Đang pha ${story.DRINKS[batch.drink].name.toLowerCase()}.`);
     void persistGameState('preparing');updateHud();
   });
   for(let index=0;index<2;index++)document.getElementById(`batch-${index}`).addEventListener('click',()=>{
-    runtime.selectedBatchId=gameState.campaign.batches[index]?.id??null;updateHud();
+    const batch=gameState.campaign.batches[index];
+    runtime.selectedBatchId=batch?.id??null;
+    if(batch)storyFeedback(story.orderText(batch));
+    updateHud();
   });
   document.getElementById('discard-drink').addEventListener('click',()=>{
-    if(runtime.mode!=='playing'||runtime.settingsOpen)return;
+    if(runtime.mode!=='playing'||runtime.settingsOpen||runtime.eventOpen)return;
     gameState.campaign.batches=gameState.campaign.batches.filter(batch=>batch.id!==runtime.selectedBatchId);
     runtime.selectedBatchId=null;storyFeedback('Đã dọn ly.');void persistGameState('discarded');updateHud();
   });
   document.getElementById('deliver-drink').addEventListener('click',()=>{
-    if(runtime.mode!=='playing'||runtime.settingsOpen)return;
+    if(runtime.mode!=='playing'||runtime.settingsOpen||runtime.eventOpen)return;
     const customer=gameState.customers.find(c=>c.id===runtime.selectedCustomerId);
     const result=story.deliver(gameState.campaign,customer,runtime.selectedBatchId);
     if(result==='wrong')storyFeedback('Chưa đúng món. Chọn lại khách hoặc pha lại.');
@@ -2748,6 +2779,7 @@ function bindStoryControls() {
 }
 
 function updateStoryHud() {
+  updateStreetHud();
   const campaign=gameState.campaign;
   const waiting=gameState.customers.filter(c=>c.phase==='waiting').sort((a,b)=>b.waitElapsed-a.waitElapsed);
   if(!waiting.some(c=>c.id===runtime.selectedCustomerId))runtime.selectedCustomerId=waiting[0]?.id??null;
@@ -2783,13 +2815,16 @@ function updateStoryHud() {
   const batch=campaign.batches.find(b=>b.id===runtime.selectedBatchId);
   for(let index=0;index<2;index++) {
     const node=document.getElementById(`batch-${index}`),item=campaign.batches[index];
-    node.textContent=item?`${item.drink==='coffee'?'Cà phê':story.DRINKS[item.drink].name} · ${story.ready(item)?'Xong':Math.ceil(item.duration-item.elapsed)+'s'}${item.ice==='less'?'\nÍt đá':''}${item.sugar==='less'?' · ít ngọt':''}`:index>=story.capacity(campaign)?'Chưa mở':'Trống';
+    const preferences=item?[item.ice==='less'?'Ít đá':'',item.sugar==='less'?'ít ngọt':''].filter(Boolean).join('/'):'';
+    node.textContent=item?[item.drink==='coffee'?'Cà phê':story.DRINKS[item.drink].name,preferences,story.ready(item)?'Xong':Math.ceil(item.duration-item.elapsed)+'s'].filter(Boolean).join('\n'):index>=story.capacity(campaign)?'Khóa':'Trống';
     node.title=item?`${story.orderText(item)} ${story.ready(item)?'Sẵn sàng':'Đang pha'}`:index>=story.capacity(campaign)?'Mở thêm chỗ pha trong cài đặt':'Khay trống';
     node.setAttribute('aria-label',node.title);
     node.disabled=!item;node.setAttribute('aria-pressed',String(item?.id===runtime.selectedBatchId));
     node.style.setProperty('--brew-progress',item?`${Math.min(100,item.elapsed/item.duration*100)}%`:'0%');
   }
-  const playing=runtime.mode==='playing'&&!runtime.settingsOpen;
+  const playing=runtime.mode==='playing'&&!runtime.settingsOpen&&!runtime.eventOpen;
+  document.getElementById('open-preparation').disabled=!playing||campaign.batches.length>=story.capacity(campaign);
+  if(gameState.levelComplete)document.getElementById('preparation-dialog').close();
   ui.upgradeServe.disabled ||= runtime.mode==='paused';
   ui.upgradeUmbrella.disabled ||= runtime.mode==='paused';
   document.getElementById('prepare-drink').disabled=!playing||campaign.batches.length>=story.capacity(campaign);
@@ -2812,6 +2847,82 @@ function updateStoryHud() {
     ui.weatherValue.textContent=`${Math.ceil(gameState.nextWeatherRollIn)}s`;
     ui.weatherValue.parentElement.title=`Mưa sau ${Math.ceil(gameState.nextWeatherRollIn)} giây`;
     ui.weatherValue.parentElement.setAttribute('aria-label',ui.weatherValue.parentElement.title);
+  }
+}
+
+function focusDock() {
+  (document.querySelector('.tray-row button:not(:disabled)')||document.getElementById('settings-button')).focus();
+}
+
+function bindStreetControls() {
+  if(!IS_STORY)return;
+  const dialog=document.getElementById('event-dialog');
+  document.getElementById('street-event').addEventListener('click',()=>{
+    if(!gameState.street.active||runtime.mode!=='playing'||runtime.settingsOpen||runtime.eventOpen)return;
+    runtime.eventOpen=true;runtime.lastFrame=0;runtime.accumulator=0;
+    renderEventDialog();dialog.showModal();updateHud();
+    void persistGameState('event-open');
+  });
+  document.getElementById('close-event').addEventListener('click',()=>dialog.close());
+  dialog.addEventListener('close',()=>{
+    runtime.eventOpen=false;runtime.lastFrame=0;runtime.accumulator=0;
+    updateHud();
+    if(gameState.street.active)document.getElementById('street-event').focus();
+    else focusDock();
+  });
+  document.getElementById('event-continue').addEventListener('click',()=>{
+    if(!runtime.eventOpen||gameState.street.active?.phase!=='result')return;
+    street.dismissEvent(gameState,gameState.street.active.token);
+    void persistGameState('event-dismiss');dialog.close();
+  });
+}
+
+function renderEventDialog() {
+  const a=gameState.street.active,p=street.presentation(gameState.street);
+  if(!p)return;
+  document.getElementById('event-title').textContent=p.title;
+  document.getElementById('event-text').textContent=p.text;
+  const portrait=document.getElementById('event-portrait');
+  portrait.src=`./public/assets/3d/events/${p.portrait}.png`;
+  const effects=[];
+  if(p.effect?.coins)effects.push(`${p.effect.coins>0?'+':''}${p.effect.coins} xu`);
+  if(p.effect?.trust)effects.push(`${p.effect.trust>0?'+':''}${p.effect.trust} thiện cảm`);
+  if(p.effect?.traffic&&p.effect.traffic!==1)effects.push(`${p.effect.traffic>1?'+15%':'-20%'} khách · 45s`);
+  if(p.effect?.later)effects.push('Có chuyện vào ngày mai');
+  document.getElementById('event-effect').textContent=effects.join(' · ');
+  const list=document.getElementById('event-choices');list.replaceChildren();
+  for(const choice of p.choices) {
+    const button=document.createElement('button');button.type='button';button.textContent=choice.label;
+    button.dataset.choice=choice.id;button.disabled=gameState.coins<choice.cost;
+    if(button.disabled)button.title=`Cần ${choice.cost} xu`;
+    const token=a.token,node=a.node;
+    button.addEventListener('click',()=>{
+      if(!runtime.eventOpen||!street.chooseEvent(gameState,token,node,choice.id))return;
+      void persistGameState('event-choice');renderEventDialog();updateHud();
+      (document.querySelector('#event-choices button:not(:disabled)')||document.getElementById('event-continue')).focus();
+    });
+    list.append(button);
+  }
+  document.getElementById('event-continue').hidden=a.phase!=='result';
+}
+
+function updateStreetHud() {
+  const s=gameState.street,p=street.presentation(s),button=document.getElementById('street-event');
+  button.hidden=!p||gameState.levelComplete;
+  button.textContent=p?`${p.title} · Xem`:'';
+  button.disabled=runtime.mode!=='playing';
+  document.getElementById('street-progress').hidden=false;
+  document.getElementById('street-progress').textContent=`Khu phố: ${s.trust>0?'+':''}${s.trust} thiện cảm${s.trust>=4?' · thêm boa mỗi 3 ly':''}${s.modifier.left>0?` · ${s.modifier.value>1?'+15%':'-20%'} khách (${Math.ceil(s.modifier.left)}s)`:''}`;
+  document.getElementById('street-journal').hidden=false;
+  const history=document.getElementById('street-history'),key=JSON.stringify(s.history);
+  if(history.dataset.entries!==key) {
+    history.dataset.entries=key;history.replaceChildren();
+    for(const item of [...s.history].reverse()) {
+      const entry=document.createElement('li');
+      const event=street.EVENTS[item.id];
+      const choice=Object.values(event.nodes).flatMap(n=>n.choices).find(c=>c.id===item.choice);
+      entry.textContent=`Ngày ${item.day}: ${event.title} · ${choice?.label||'Đã đi qua'}`;history.append(entry);
+    }
   }
 }
 

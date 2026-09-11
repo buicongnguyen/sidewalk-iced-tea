@@ -2,14 +2,20 @@ import * as THREE from './vendor/three.module.js';
 import { GLTFLoader } from './vendor/GLTFLoader.js';
 import { RoomEnvironment } from './vendor/RoomEnvironment.js';
 import { DRINKS } from './campaign.mjs';
+import { createEventScene } from './event-scene.js';
 
 let kitPromise;
+let eventKitPromise;
 
 // Rendering consumes snapshots. It never advances simulation or grants rewards.
 export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitSeconds) {
   kitPromise ??= new GLTFLoader().loadAsync(new URL('./public/assets/3d/shop-kit.glb', import.meta.url).href)
     .catch(error => { kitPromise = null; throw error; });
   const kit = (await kitPromise).scene;
+  const storyView=layout[0]?.id.startsWith('table-story-');
+  if(storyView)eventKitPromise??=new GLTFLoader().loadAsync(new URL('./public/assets/3d/events-kit.glb',import.meta.url).href)
+    .catch(error=>{eventKitPromise=null;throw error;});
+  const eventKit=storyView?(await eventKitPromise).scene:null;
   const renderer = new THREE.WebGLRenderer({canvas, antialias:true, preserveDrawingBuffer:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.setSize(960, 540, false);
@@ -53,7 +59,8 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
     item.castShadow = true; item.receiveShadow = true;
     item.scale.set(...size); item.position.set(...position); parent.add(item); return item;
   }
-  const world = (x,y)=>new THREE.Vector3((x-480)/90,0,(y-270)/90);
+  let portrait=false;
+  const world = (x,y)=>new THREE.Vector3((x-480)/90*(portrait?.75:1),0,(y-270)/90*(portrait?1.4:1));
   const staticFurniture=[];
   function asset(name,parent,position=[0,0,0]) {
     const source=kit.getObjectByName(name);
@@ -81,7 +88,12 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
   const paving=new THREE.CanvasTexture(bitmap);paving.wrapS=paving.wrapT=THREE.RepeatWrapping;
   paving.repeat.set(3,2);paving.colorSpace=THREE.SRGBColorSpace;
   ground.material=new THREE.MeshStandardMaterial({map:paving,roughness:.92,bumpMap:paving,bumpScale:.025});
-  mesh(scene,box,'#75818a',[10.8,.1,.8],[0,-.12,-3.5]);
+  if(!storyView)mesh(scene,box,'#75818a',[10.8,.1,.8],[0,-.12,-3.5]);
+  if(storyView) {
+    mesh(scene,box,'#626c72',[10.8,.1,1.9],[0,-.12,-3.65]);
+    for(let x=-4.5;x<5;x+=1.5)mesh(scene,box,'#e6e2c9',[.65,.006,.035],[x,-.06,-4.2]);
+  }
+  const streetScene=eventKit?createEventScene(THREE,scene,eventKit):null;
   const stall=asset('Stall',scene,[-4.2,0,-1.7]);
   for(const x of [-5,5]) for(const z of [-2.6,2.6]) {
     asset('Planter',scene,[x,0,z]);
@@ -116,7 +128,7 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
       asset('Stool',group,[pos.x,0,pos.z]);
     }
     const updateLabel=label(group,`B${table.index+1}`,0,1.18,0);
-    tableGroups.set(table.id,{group,top,updateLabel,index:table.index});
+    tableGroups.set(table.id,{group,top,updateLabel,index:table.index,layout:table});
   }
   const people=new Map();
   // Keep the table geometry for picking, but render shared furniture in batches.
@@ -182,7 +194,7 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
   canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();onFailure();});
   let clock=0;
   let previousTimestamp=null;
-  let viewportWidth=0,viewportHeight=0,portrait=false;
+  let viewportWidth=0,viewportHeight=0;
   function resizeScene() {
     const rect=canvas.getBoundingClientRect();
     const width=Math.round(rect.width)||960,height=Math.round(rect.height)||540;
@@ -191,14 +203,26 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
     const scale=Math.min(1,960/Math.max(width,height));
     renderer.setSize(Math.round(width*scale),Math.round(height*scale),false);
     portrait=layout[0]?.id.startsWith('table-story-')&&width/height<1.3;
-    const halfWidth=portrait?4.3:6.8,focusX=portrait?.3:0;
+    const halfWidth=Math.max(portrait?2.9:6.8,storyView&&!portrait?width/height*3.9:0),focusX=portrait?.1:0;
     camera.left=-halfWidth;camera.right=halfWidth;
     camera.top=halfWidth*height/width;camera.bottom=-camera.top;
     camera.position.set(focusX,7.8,9);camera.lookAt(focusX,.25,0);
     camera.updateProjectionMatrix();
     // Keep the counter above the tables in portrait without moving gameplay seats.
-    stall.position.set(portrait?-1.5:-4.2,0,portrait?-2.3:-1.7);
+    stall.position.set(portrait?-1.25:-4.2,0,portrait?-2.8:-1.7);
     stallSign.position.copy(stall.position);
+    for(const record of tableGroups.values()) {
+      const table=record.layout;
+      record.group.position.copy(world(table.x+table.width/2,table.y+45));
+      record.group.children.filter(o=>o.name==='Stool').forEach((stool,index)=>stool.position.copy(world(table.seats[index].x,table.seats[index].y).sub(record.group.position)));
+    }
+    scene.updateMatrixWorld(true);
+    for(const batch of scene.children.filter(o=>o.isInstancedMesh)) {
+      const items=batches.get(`${batch.geometry.uuid}:${batch.material.uuid}`);
+      items.forEach((item,index)=>batch.setMatrixAt(index,item.matrixWorld));
+      batch.instanceMatrix.needsUpdate=true;
+      batch.computeBoundingSphere();
+    }
     ground.scale.z=portrait?10.5:6.1;
     ground.position.z=(ground.scale.z-6.1)/2;
     paving.repeat.y=ground.scale.z/6.1*2;
@@ -208,6 +232,7 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
       resizeScene();
       if(playing && previousTimestamp!==null)clock+=Math.max(0,Math.min(100,timestamp-previousTimestamp));
       previousTimestamp=timestamp;
+      streetScene?.update(state.street,clock,portrait);
       scene.background.set(state.timeOfDay==='evening'?'#92859c':'#a9d8dc');
       sun.color.set(state.timeOfDay==='evening'?'#ffd0a1':'#fff5e0');
       sun.intensity=state.timeOfDay==='evening'?1.4:2.5;
@@ -262,6 +287,6 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
       }
       return new GLTFExporter().parseAsync(model,{binary:true});
     },
-    diagnostics(){return {assetKit:'blender-v1',viewport:{width:viewportWidth,height:viewportHeight,portrait},calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,people:people.size,cups:[...people.values()].filter(p=>p.cup.visible).length};},
+    diagnostics(){return {assetKit:'blender-v1',street:streetScene?.diagnostics(camera),viewport:{width:viewportWidth,height:viewportHeight,portrait},calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,people:people.size,cups:[...people.values()].filter(p=>p.cup.visible).length};},
   };
 }

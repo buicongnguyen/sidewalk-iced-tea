@@ -10,7 +10,7 @@
     <title>Trà Đá Vỉa Hè - Chuyện Góc Phố</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/icons/app-icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./app.css?v=19" />
+    <link rel="stylesheet" href="./app.css?v=20" />
   </head>
   <body>
     <div class="app-shell">
@@ -52,6 +52,7 @@
             <span class="streak-status" title="Chuỗi phục vụ"><img src="./vendor/lucide/icons/flame.svg" alt="Chuỗi" /><span id="chapter-progress">0</span></span>
           </div>
           <div class="playfield-frame">
+            <button id="street-event" type="button" hidden aria-haspopup="dialog" aria-controls="event-dialog"></button>
             <canvas
               id="game-canvas"
               width="960"
@@ -92,7 +93,10 @@
 
           <section id="story-panel" hidden aria-label="Quầy pha nước">
             <div id="order-list" class="order-list" aria-label="Đơn đang chờ"></div>
-            <div class="preparation-row">
+            <dialog id="preparation-dialog" aria-labelledby="preparation-title">
+              <header class="settings-heading"><h2 id="preparation-title">Pha nước</h2><button id="close-preparation" type="button" class="icon-button" title="Đóng quầy pha" aria-label="Đóng quầy pha"><img src="./vendor/lucide/icons/x.svg" alt="" /></button></header>
+              <p id="preparation-order"></p>
+              <div class="preparation-row">
               <fieldset class="recipe-picker"><legend>Món</legend>
                 <label><input type="radio" name="drink" value="tea" checked /><img src="./public/assets/drinks/tea.svg" alt="" />Trà đá</label>
                 <label><input type="radio" name="drink" value="lime" /><img src="./public/assets/drinks/lime.svg" alt="" />Trà tắc</label>
@@ -103,8 +107,10 @@
                 <label>Độ ngọt<select id="recipe-sugar"><option value="normal">Vừa</option><option value="less">Ít ngọt</option></select></label>
                 <button id="prepare-drink" type="button">Pha</button>
               </div>
-            </div>
+              </div>
+            </dialog>
             <div class="tray-row">
+              <button id="open-preparation" type="button" aria-haspopup="dialog" aria-controls="preparation-dialog" title="Pha nước"><img src="./vendor/lucide/icons/cup-soda.svg" alt="" /><span>Pha</span></button>
               <button id="batch-0" type="button" class="batch-slot"></button>
               <button id="batch-1" type="button" class="batch-slot"></button>
               <button id="discard-drink" class="icon-button" type="button" title="Bỏ ly đang chọn" aria-label="Bỏ ly đang chọn"><img src="./vendor/lucide/icons/trash-2.svg" alt="" /></button>
@@ -116,6 +122,15 @@
         </section>
       </main>
     </div>
+
+    <dialog id="event-dialog" aria-labelledby="event-title" aria-describedby="event-text">
+      <header class="settings-heading"><h2 id="event-title"></h2><button id="close-event" type="button" class="icon-button" title="Để lát nữa" aria-label="Để lát nữa"><img src="./vendor/lucide/icons/x.svg" alt="" /></button></header>
+      <img id="event-portrait" alt="" />
+      <p id="event-text" aria-live="polite"></p>
+      <p id="event-effect" role="status"></p>
+      <div id="event-choices"></div>
+      <button id="event-continue" type="button" hidden>Tiếp tục</button>
+    </dialog>
 
     <dialog id="settings-dialog" aria-labelledby="settings-title">
       <header class="settings-heading"><h2 id="settings-title">Cài đặt</h2><button id="close-settings" class="icon-button" type="button" title="Đóng" aria-label="Đóng cài đặt" autofocus><img src="./vendor/lucide/icons/x.svg" alt="" /></button></header>
@@ -129,6 +144,8 @@
             </label>
             </div>
             <p id="settings-progress" hidden></p>
+            <p id="street-progress" hidden></p>
+            <details id="street-journal" hidden><summary>Chuyện khu phố</summary><ol id="street-history"></ol></details>
             <div class="meta-row">
               <div class="meta-pill">
                 <span class="meta-label">Bàn</span>
@@ -168,6 +185,6 @@
           </div>
     </dialog>
 
-    <script type="module" src="./app.js?v=19"></script>
+    <script type="module" src="./app.js?v=20"></script>
   </body>
 </html>

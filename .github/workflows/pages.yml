@@ -33,6 +33,7 @@ jobs:
       - run: npm run smoke
       - run: npm run flow
       - run: npm run rules
+      - run: npm run events
       - run: npm run story
       - run: npm run mobile
       - run: npm run visual

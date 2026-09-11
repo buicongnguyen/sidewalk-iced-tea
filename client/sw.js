@@ -1,4 +1,4 @@
-const CACHE_NAME = "sidewalk-iced-tea-planb-v19";
+const CACHE_NAME = "sidewalk-iced-tea-planb-v20";
 const CUSTOMER_ASSET_NAMES = [
   "customer-man",
   "customer-woman",
@@ -54,11 +54,16 @@ const APP_SHELL = [
   "./index.html",
   "./app.css",
   "./app.js",
-  "./app.css?v=19",
-  "./app.js?v=19",
-  "./scene3d.js?v=19",
+  "./app.css?v=20",
+  "./app.js?v=20",
+  "./scene3d.js?v=20",
   ...['settings','x','pause','play','trash-2','sun','cloud-rain','cup-soda','flame'].map(name=>`./vendor/lucide/icons/${name}.svg`),
   "./campaign.mjs",
+  "./events.mjs",
+  "./event-data.mjs",
+  "./event-scene.js",
+  "./public/assets/3d/events-kit.glb",
+  ...['Argument','Scooter','Car','Girl','PhoneGuest','Visitor','Dog','DogChew','Cat','CatCap','Musician','Parcel','Umbrella','Chess'].map(name=>`./public/assets/3d/events/${name}.png`),
   "./public/assets/drinks/tea.svg",
   "./public/assets/drinks/lime.svg",
   "./public/assets/drinks/coffee.svg",

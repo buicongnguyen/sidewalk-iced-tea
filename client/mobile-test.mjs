@@ -48,8 +48,8 @@ try {
     await page.click('#pause-button');
     const measure=await page.evaluate(()=>{
       const bounds=selector=>{const r=document.querySelector(selector).getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};};
-      const selectors=['.game-header','#chapter-band','.playfield-frame','#story-panel','#prepare-drink','#deliver-drink','#settings-button'];
-      const clipping=[...document.querySelectorAll('.game-header .status-chip,.recipe-picker label,.batch-slot')].filter(el=>el.scrollWidth>el.clientWidth+1||el.scrollHeight>el.clientHeight+1).map(el=>el.id||el.className);
+      const selectors=['.game-header','#chapter-band','.playfield-frame','#story-panel','#open-preparation','#deliver-drink','#settings-button'];
+      const clipping=[...document.querySelectorAll('.game-header .status-chip,.batch-slot')].filter(el=>el.scrollWidth>el.clientWidth+1||el.scrollHeight>el.clientHeight+1).map(el=>el.id||el.className);
       return {width:innerWidth,height:innerHeight,scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight,rects:Object.fromEntries(selectors.map(s=>[s,bounds(s)])),clipping};
     });
     assert.ok(measure.scrollWidth<=width,JSON.stringify(measure));
@@ -57,6 +57,7 @@ try {
     assert.deepEqual(measure.clipping,[],JSON.stringify(measure));
     for(const [selector,rect] of Object.entries(measure.rects))assert.ok(rect.x>=0&&rect.y>=0&&rect.right<=width+1&&rect.bottom<=height+1,selector+JSON.stringify(measure));
     const frame=measure.rects['.playfield-frame'],panel=measure.rects['#story-panel'];
+    assert.ok(frame.height/height>=(width<height?(height>=800?.70:.60):.60),'play area share '+JSON.stringify(measure));
     assert.ok(frame.right<=panel.x+1||frame.bottom<=panel.y+1,'scene must not overlap controls');
     await page.screenshot({path:`test-results/mobile-${width}x${height}.png`,fullPage:true,style:'#title-overlay {visibility:hidden!important}'});
     await page.click('#settings-button');
