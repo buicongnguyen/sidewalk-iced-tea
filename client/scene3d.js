@@ -13,6 +13,7 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
     .catch(error => { kitPromise = null; throw error; });
   const kit = (await kitPromise).scene;
   const storyView=layout[0]?.id.startsWith('table-story-');
+  const shopScale=storyView?.88:1;
   if(storyView)eventKitPromise??=new GLTFLoader().loadAsync(new URL('./public/assets/3d/events-kit.glb',import.meta.url).href)
     .catch(error=>{eventKitPromise=null;throw error;});
   const eventKit=storyView?(await eventKitPromise).scene:null;
@@ -60,7 +61,8 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
     item.scale.set(...size); item.position.set(...position); parent.add(item); return item;
   }
   let portrait=false;
-  const world = (x,y)=>new THREE.Vector3((x-480)/90*(portrait?.75:1),0,(y-270)/90*(portrait?1.4:1));
+  // Scale the shop footprint and its models together so routes still meet seats.
+  const world = (x,y)=>new THREE.Vector3((x-480)/90*(portrait?.75:1),0,(y-270)/90*(portrait?1.4:1)).multiplyScalar(shopScale);
   const staticFurniture=[];
   function asset(name,parent,position=[0,0,0]) {
     const source=kit.getObjectByName(name);
@@ -93,10 +95,11 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
     mesh(scene,box,'#626c72',[10.8,.1,1.9],[0,-.12,-3.65]);
     for(let x=-4.5;x<5;x+=1.5)mesh(scene,box,'#e6e2c9',[.65,.006,.035],[x,-.06,-4.2]);
   }
-  const streetScene=eventKit?createEventScene(THREE,scene,eventKit):null;
+  const streetScene=eventKit?createEventScene(THREE,scene,eventKit,shopScale):null;
   const stall=asset('Stall',scene,[-4.2,0,-1.7]);
+  stall.scale.multiplyScalar(shopScale);
   for(const x of [-5,5]) for(const z of [-2.6,2.6]) {
-    asset('Planter',scene,[x,0,z]);
+    asset('Planter',scene,[x,0,z]).scale.multiplyScalar(shopScale);
   }
   const tableMeshes=[];
   const tableGroups=new Map();
@@ -106,7 +109,7 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
     const context=bitmap.getContext('2d');
     const texture=new THREE.CanvasTexture(bitmap);
     const mat=new THREE.SpriteMaterial({map:texture,depthTest:false});
-    const sprite=new THREE.Sprite(mat); sprite.scale.set(1.3,.325,1); sprite.position.set(x,y,z); parent.add(sprite);
+    const sprite=new THREE.Sprite(mat); sprite.scale.set(1.3,.325,1).divideScalar(shopScale); sprite.position.set(x,y,z); parent.add(sprite);
     let previous='';
     const update=value=>{
       if(value===previous)return;
@@ -117,14 +120,16 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
     update(text); labelResources.push({texture,mat}); return update;
   }
   const stallSign=new THREE.Group();scene.add(stallSign);
+  stallSign.scale.setScalar(shopScale);
   label(stallSign,'TRÀ ĐÁ',0,1.35,.6);
   stallSign.position.copy(stall.position);
   for(const table of layout) {
     const group=new THREE.Group(); group.position.copy(world(table.x+table.width/2,table.y+45)); scene.add(group);
+    group.scale.setScalar(shopScale);
     const model=asset('Table',group);
     const top=model.getObjectByName('TableTop');top.userData.tableId=table.id;tableMeshes.push(top);
     for(const seat of table.seats) {
-      const pos=world(seat.x,seat.y).sub(group.position);
+      const pos=world(seat.x,seat.y).sub(group.position).divideScalar(shopScale);
       asset('Stool',group,[pos.x,0,pos.z]);
     }
     const updateLabel=label(group,`B${table.index+1}`,0,1.18,0);
@@ -148,6 +153,7 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
   }
   function person(customer) {
     const root=asset('Customer',scene);
+    root.scale.multiplyScalar(shopScale);
     let hash=0; for(const char of customer.type)hash=(hash*31+char.charCodeAt(0))>>>0;
     const colors=['#428e98','#cd607b','#7f995e','#dbb951','#805fa6','#d78862'];
     const skin=['#e0ad85','#f2c59e','#b98263'][hash%3];
@@ -184,11 +190,27 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
   const rainMaterial=new THREE.PointsMaterial({color:'#e2f5ff',size:.035});
   const rain=new THREE.Points(rainGeometry,rainMaterial);scene.add(rain);
   const raycaster=new THREE.Raycaster();
+  function tableTarget(record) {
+    const bounds=new THREE.Box3().setFromObject(record.top),points=[];
+    for(const x of [bounds.min.x,bounds.max.x])for(const y of [bounds.min.y,bounds.max.y])for(const z of [bounds.min.z,bounds.max.z]) {
+      const p=new THREE.Vector3(x,y,z).project(camera);
+      points.push({x:(p.x+1)*viewportWidth/2,y:(1-p.y)*viewportHeight/2});
+    }
+    const left=Math.min(...points.map(p=>p.x)),right=Math.max(...points.map(p=>p.x));
+    const top=Math.min(...points.map(p=>p.y)),bottom=Math.max(...points.map(p=>p.y));
+    return {id:record.layout.id,x:(left+right)/2,y:(top+bottom)/2,width:Math.max(44,right-left),height:Math.max(44,bottom-top)};
+  }
   function pointer(event) {
     const rect=canvas.getBoundingClientRect();
     raycaster.setFromCamera(new THREE.Vector2((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1),camera);
     const hit=raycaster.intersectObjects(tableMeshes)[0];
-    if(hit)onTable(hit.object.userData.tableId);
+    if(hit){onTable(hit.object.userData.tableId);return;}
+    // Small furniture must not turn into small touch targets.
+    const x=event.clientX-rect.left,y=event.clientY-rect.top;
+    const nearest=[...tableGroups.values()].map(tableTarget)
+      .filter(t=>Math.abs(x-t.x)<=t.width/2&&Math.abs(y-t.y)<=t.height/2)
+      .sort((a,b)=>Math.hypot(x-a.x,y-a.y)-Math.hypot(x-b.x,y-b.y))[0];
+    if(nearest)onTable(nearest.id);
   }
   canvas.addEventListener('pointerdown',pointer);
   canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();onFailure();});
@@ -203,18 +225,18 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
     const scale=Math.min(1,960/Math.max(width,height));
     renderer.setSize(Math.round(width*scale),Math.round(height*scale),false);
     portrait=layout[0]?.id.startsWith('table-story-')&&width/height<1.3;
-    const halfWidth=Math.max(portrait?2.9:6.8,storyView&&!portrait?width/height*4.1:0),focusX=portrait?.1:0;
+    const halfWidth=Math.max(portrait?2.9:6.8,storyView?width/height*4.1:0),focusX=portrait?.1:0;
     camera.left=-halfWidth;camera.right=halfWidth;
     camera.top=halfWidth*height/width;camera.bottom=-camera.top;
     camera.position.set(focusX,7.8,9);camera.lookAt(focusX,.25,0);
     camera.updateProjectionMatrix();
     // Keep the counter above the tables in portrait without moving gameplay seats.
-    stall.position.set(portrait?-1.25:-4.2,0,portrait?-2.8:-1.7);
+    stall.position.set(portrait?-1.25:-4.2,0,portrait?-2.8:-1.7).multiplyScalar(shopScale);
     stallSign.position.copy(stall.position);
     for(const record of tableGroups.values()) {
       const table=record.layout;
       record.group.position.copy(world(table.x+table.width/2,table.y+45));
-      record.group.children.filter(o=>o.name==='Stool').forEach((stool,index)=>stool.position.copy(world(table.seats[index].x,table.seats[index].y).sub(record.group.position)));
+      record.group.children.filter(o=>o.name==='Stool').forEach((stool,index)=>stool.position.copy(world(table.seats[index].x,table.seats[index].y).sub(record.group.position).divideScalar(shopScale)));
     }
     scene.updateMatrixWorld(true);
     for(const batch of scene.children.filter(o=>o.isInstancedMesh)) {
@@ -246,7 +268,7 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
         figure.leftLeg.rotation.x=step; figure.rightLeg.rotation.x=-step;
         figure.knees.forEach(knee=>knee.rotation.x=walking?0:Math.PI/2);
         if(!walking) {
-          figure.root.position.y=-.13;
+          figure.root.position.y=-.13*shopScale;
           figure.leftLeg.rotation.x=figure.rightLeg.rotation.x=-Math.PI/2;
         }
         figure.leftArm.rotation.x=-step;figure.rightArm.rotation.x=step;
@@ -272,8 +294,8 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
       renderer.render(scene,camera);
     },
     tablePoint(id) {
-      const record=tableGroups.get(id); const vector=record.group.position.clone();vector.y=.7;vector.project(camera);
-      return {x:(vector.x+1)*480,y:(1-vector.y)*270};
+      const target=tableTarget(tableGroups.get(id));
+      return {x:target.x/viewportWidth*960,y:target.y/viewportHeight*540};
     },
     setZoom(value) { camera.zoom=THREE.MathUtils.clamp(Number(value)||1,1,1.8);camera.updateProjectionMatrix(); },
     async exportGLB() {
@@ -287,6 +309,6 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
       }
       return new GLTFExporter().parseAsync(model,{binary:true});
     },
-    diagnostics(){return {assetKit:'blender-v1',street:streetScene?.diagnostics(camera),viewport:{width:viewportWidth,height:viewportHeight,portrait},calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,people:people.size,cups:[...people.values()].filter(p=>p.cup.visible).length};},
+    diagnostics(){return {assetKit:'blender-v1',objectScale:shopScale,tableTargets:[...tableGroups.values()].map(tableTarget),street:streetScene?.diagnostics(camera),viewport:{width:viewportWidth,height:viewportHeight,portrait},calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,people:people.size,cups:[...people.values()].filter(p=>p.cup.visible).length};},
   };
 }

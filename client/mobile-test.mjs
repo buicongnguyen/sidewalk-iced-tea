@@ -109,10 +109,12 @@ try {
       const copy=document.createElement('canvas');copy.width=c.width;copy.height=c.height;
       const ctx=copy.getContext('2d');ctx.drawImage(c,0,0);const data=ctx.getImageData(0,0,copy.width,copy.height).data,colors=new Set();
       for(let i=0;i<data.length;i+=400)colors.add(`${data[i]},${data[i+1]},${data[i+2]}`);
-      return {colors:colors.size,points:state.layout.map(t=>window.__planBGame.tablePoint(t.id)),customers:state.customers,kit:state.renderer.assetKit,fill:Math.abs(rect.width-frame.width)<1&&Math.abs(rect.height-frame.height)<1,overflow:document.documentElement.scrollHeight>innerHeight||document.documentElement.scrollWidth>innerWidth};
+      return {colors:colors.size,points:state.layout.map(t=>window.__planBGame.tablePoint(t.id)),targets:state.renderer.tableTargets,scale:state.renderer.objectScale,customers:state.customers,kit:state.renderer.assetKit,fill:Math.abs(rect.width-frame.width)<1&&Math.abs(rect.height-frame.height)<1,overflow:document.documentElement.scrollHeight>innerHeight||document.documentElement.scrollWidth>innerWidth};
     });
     assert.ok(check.fill&&!check.overflow&&check.colors>20,JSON.stringify(check));
     assert.equal(check.kit,'blender-v1');assert.deepEqual(check.customers,frozen);
+    assert.equal(check.scale,.88);
+    for(const target of check.targets)assert.ok(target.width>=44&&target.height>=44,'minimum touch target '+JSON.stringify(target));
     for(const point of check.points)assert.ok(point.x>0&&point.x<960&&point.y>0&&point.y<540,JSON.stringify(point));
     await page.screenshot({path:`test-results/mobile-3d-${width}x${height}.png`,style:'#title-overlay,#toast {visibility:hidden!important}'});
     console.log('PASS full-frame 3D resize, visible tables and unchanged game state',width,height);
@@ -120,7 +122,8 @@ try {
   await page.click('#pause-button');
   const point=await page.evaluate(()=>window.__planBGame.tablePoint('table-story-2'));
   const rect=await page.locator('#game-canvas-3d').boundingBox();
-  await page.mouse.click(rect.x+point.x/960*rect.width,rect.y+point.y/540*rect.height);
+  // The lower edge of the padded hit area is outside the smaller tabletop.
+  await page.mouse.click(rect.x+point.x/960*rect.width,rect.y+point.y/540*rect.height+21);
   assert.equal(await page.evaluate(()=>window.__planBGame.getSnapshot().selectedCustomerId),2);
   await context.close();
   assert.deepEqual(errors,[]);

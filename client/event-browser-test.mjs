@@ -48,7 +48,7 @@ try {
     const renderer=await createScene3D(canvas,state.layout,()=>{},()=>{},40);
     renderer.setZoom(1.2);window.fixture={renderer,canvas,clock:0};
   },modelState);
-  for(const [width,height] of [[390,844],[844,390]]) {
+  for(const [width,height] of [[390,844],[844,390],[320,568],[1280,900]]) {
     await models.setViewportSize({width,height});
     for(const id of ['fight','racing','parking','girl','payment','meal','alert-dog','cat','music','parcel','umbrella','chess']) {
       modelState.street.active=null;startEvent(modelState,id);modelState.street.active.variant=0;
@@ -65,6 +65,7 @@ try {
       },modelState);
       const d=check.diagnostics;
       assert.equal(d.asset,EVENTS[id].asset);
+      assert.equal(d.modelScale,.88);
       assert.ok(d.bounds.left>-1&&d.bounds.right<1&&d.bounds.top<1&&d.bounds.bottom>-1,id+JSON.stringify(d.bounds));
       assert.ok(check.paused&&check.unchanged&&check.colors>20,id+JSON.stringify(check));
       if(['fight','racing','cat','alert-dog','umbrella'].includes(id))assert.ok(check.moving,'rendered animation '+id);
@@ -72,6 +73,35 @@ try {
       console.log('PASS reusable Blender scene: framing, pixels, pause and state isolation',id,width);
     }
   }
+  const roaming=await models.evaluate(async()=>{
+    const THREE=await import('./vendor/three.module.js');
+    const {GLTFLoader}=await import('./vendor/GLTFLoader.js');
+    const {createEventScene}=await import('./event-scene.js');
+    const kit=(await new GLTFLoader().loadAsync('./public/assets/3d/events-kit.glb')).scene;
+    const scene=new THREE.Scene(),view=createEventScene(THREE,scene,kit,.88),camera=new THREE.PerspectiveCamera();
+    const results=[];
+    // Sample the entire loop without expensive WebGL draws, including turns.
+    for(const portrait of [true,false])for(const id of ['friendly-dog','cat','alert-dog']) {
+      let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity,minY=Infinity,maxY=-Infinity;
+      for(let step=0;step<=64;step++) {
+        view.update({active:{id,token:id,variant:0}},step/64*Math.PI*2/.45*1000,portrait);
+        const d=view.diagnostics(camera),p=scene.getObjectByName('StreetEncounter').children[0].position;
+        minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);
+        minZ=Math.min(minZ,d.worldBounds.min[2]);
+        maxZ=Math.max(maxZ,d.worldBounds.max[2]);
+        minY=Math.min(minY,d.worldBounds.min[1]);maxY=Math.max(maxY,d.worldBounds.min[1]);
+      }
+      results.push({id,portrait,span:maxX-minX,minZ,maxZ,minY,maxY});
+    }
+    return results;
+  });
+  for(const sample of roaming) {
+    assert.ok(sample.id==='alert-dog'?sample.span<.1:sample.span>=2.2,'roaming distance '+JSON.stringify(sample));
+    if(sample.portrait)assert.ok(sample.minZ>2.7,'clear of table seats '+JSON.stringify(sample));
+    assert.ok(sample.maxZ<(sample.portrait?7.45:3.05),'inside the sidewalk '+JSON.stringify(sample));
+    assert.ok(sample.minY>-.12&&sample.maxY<.05,'floor contact '+JSON.stringify(sample));
+  }
+  console.log('PASS complete roaming loops, seated customer clearance and floor contact');
   await models.context().close();
   for(const id of ['fight','cat']) {
     const page=await open(id);

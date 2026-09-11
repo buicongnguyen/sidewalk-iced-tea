@@ -2662,7 +2662,7 @@ async function changeView() {
   select.disabled = true;
   try {
     if (select.value === "3d" && !runtime.scene3d) {
-      const { createScene3D } = await import("./scene3d.js?v=20");
+      const { createScene3D } = await import("./scene3d.js?v=21");
       runtime.scene3d = await createScene3D(canvas, TABLE_LAYOUT, serveTable, () => {
         fallback();
         // A lost context must not be selected again until the page is reloaded.
