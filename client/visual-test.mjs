@@ -30,8 +30,10 @@ try {
     });
     if(check.colors<20 || check.overflow || errors.length) throw new Error(JSON.stringify({check,errors}));
     console.log(JSON.stringify({viewport, ...check,errors}));
+    await page.click('#settings-button');
     await page.selectOption('#view-mode','3d');
     await page.waitForFunction(()=>window.__planBGame.getSnapshot().view==='3d');
+    await page.click('#close-settings');
     await page.waitForTimeout(150);
     const before=await page.evaluate(()=>window.__planBGame.getSnapshot());
     assert.equal(before.renderer.assetKit,'blender-v1');
@@ -63,7 +65,9 @@ try {
     }
     await page.screenshot({path:`test-results/scene-3d-${viewport.width}.png`,fullPage:true});
     await page.waitForTimeout(250);
+    await page.click('#settings-button');
     await page.selectOption('#view-mode','2d');
+    await page.click('#close-settings');
     const after=await page.evaluate(()=>window.__planBGame.getSnapshot());
     assert.equal(after.levelElapsed,served.levelElapsed);
     assert.deepEqual(after.customers,served.customers);
@@ -90,6 +94,7 @@ try {
       assert.equal(frame.cups,frame.phase==='enjoying'?1:0);
       assert.ok(frame.moving && frame.paused && frame.unchanged);
     }
+    await page.click('#settings-button');
     await page.selectOption('#view-mode','3d');
     await page.waitForFunction(()=>window.__planBGame.getSnapshot().view==='3d');
     const zoomBefore=await page.evaluate(()=>document.querySelector('#game-canvas-3d').toDataURL());
@@ -98,6 +103,7 @@ try {
     const zoomAfter=await page.evaluate(()=>document.querySelector('#game-canvas-3d').toDataURL());
     assert.notEqual(zoomAfter,zoomBefore);
     await writeFile(`test-results/detail-${viewport.width}.png`,Buffer.from(zoomAfter.split(',')[1],'base64'));
+    await page.click('#close-settings');
     await page.evaluate(()=>document.querySelector('#game-canvas-3d').getContext('webgl2').getExtension('WEBGL_lose_context').loseContext());
     await page.waitForFunction(()=>window.__planBGame.getSnapshot().view==='2d');
     assert.equal(await page.locator('#game-canvas').isVisible(),true);

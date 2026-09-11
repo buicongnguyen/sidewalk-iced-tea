@@ -34,6 +34,7 @@ jobs:
       - run: npm run flow
       - run: npm run rules
       - run: npm run story
+      - run: npm run mobile
       - run: npm run visual
       - uses: actions/upload-artifact@v4
         if: always()

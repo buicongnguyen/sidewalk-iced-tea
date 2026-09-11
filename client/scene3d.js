@@ -82,7 +82,7 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
   paving.repeat.set(3,2);paving.colorSpace=THREE.SRGBColorSpace;
   ground.material=new THREE.MeshStandardMaterial({map:paving,roughness:.92,bumpMap:paving,bumpScale:.025});
   mesh(scene,box,'#75818a',[10.8,.1,.8],[0,-.12,-3.5]);
-  asset('Stall',scene,[-4.2,0,-1.7]);
+  const stall=asset('Stall',scene,[-4.2,0,-1.7]);
   for(const x of [-5,5]) for(const z of [-2.6,2.6]) {
     asset('Planter',scene,[x,0,z]);
   }
@@ -104,7 +104,9 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
     };
     update(text); labelResources.push({texture,mat}); return update;
   }
-  label(scene,'TRÀ ĐÁ',-4.2,1.35,-1.1);
+  const stallSign=new THREE.Group();scene.add(stallSign);
+  label(stallSign,'TRÀ ĐÁ',0,1.35,.6);
+  stallSign.position.copy(stall.position);
   for(const table of layout) {
     const group=new THREE.Group(); group.position.copy(world(table.x+table.width/2,table.y+45)); scene.add(group);
     const model=asset('Table',group);
@@ -180,8 +182,30 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
   canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();onFailure();});
   let clock=0;
   let previousTimestamp=null;
+  let viewportWidth=0,viewportHeight=0,portrait=false;
+  function resizeScene() {
+    const rect=canvas.getBoundingClientRect();
+    const width=Math.round(rect.width)||960,height=Math.round(rect.height)||540;
+    if(width===viewportWidth&&height===viewportHeight)return;
+    viewportWidth=width;viewportHeight=height;
+    const scale=Math.min(1,960/Math.max(width,height));
+    renderer.setSize(Math.round(width*scale),Math.round(height*scale),false);
+    portrait=layout[0]?.id.startsWith('table-story-')&&width/height<1.3;
+    const halfWidth=portrait?4.3:6.8,focusX=portrait?.3:0;
+    camera.left=-halfWidth;camera.right=halfWidth;
+    camera.top=halfWidth*height/width;camera.bottom=-camera.top;
+    camera.position.set(focusX,7.8,9);camera.lookAt(focusX,.25,0);
+    camera.updateProjectionMatrix();
+    // Keep the counter above the tables in portrait without moving gameplay seats.
+    stall.position.set(portrait?-1.5:-4.2,0,portrait?-2.3:-1.7);
+    stallSign.position.copy(stall.position);
+    ground.scale.z=portrait?10.5:6.1;
+    ground.position.z=(ground.scale.z-6.1)/2;
+    paving.repeat.y=ground.scale.z/6.1*2;
+  }
   return {
     render(state, timestamp, playing) {
+      resizeScene();
       if(playing && previousTimestamp!==null)clock+=Math.max(0,Math.min(100,timestamp-previousTimestamp));
       previousTimestamp=timestamp;
       scene.background.set(state.timeOfDay==='evening'?'#92859c':'#a9d8dc');
@@ -238,6 +262,6 @@ export async function createScene3D(canvas, layout, onTable, onFailure, maxWaitS
       }
       return new GLTFExporter().parseAsync(model,{binary:true});
     },
-    diagnostics(){return {assetKit:'blender-v1',calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,people:people.size,cups:[...people.values()].filter(p=>p.cup.visible).length};},
+    diagnostics(){return {assetKit:'blender-v1',viewport:{width:viewportWidth,height:viewportHeight,portrait},calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,people:people.size,cups:[...people.values()].filter(p=>p.cup.visible).length};},
   };
 }

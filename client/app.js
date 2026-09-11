@@ -155,6 +155,9 @@ ctx.imageSmoothingEnabled = false;
 const TABLE_LAYOUT = buildTableLayout();
 
 const runtime = {
+  ready: false,
+  settingsOpen: false,
+  sceneTimestamp: 0,
   selectedCustomerId: null,
   selectedBatchId: null,
   view3d: false,
@@ -195,6 +198,9 @@ async function init() {
     gameState = restoreState(loadedState);
   }
 
+  runtime.ready=true;
+  document.getElementById('settings-button').disabled=false;
+  ui.startButton.disabled=false;
   updateOverlay();
   updateHud();
   updateOnlineState();
@@ -208,6 +214,7 @@ async function init() {
 }
 
 function bindEvents() {
+  bindSettings();
   bindStoryControls();
   ui.canvas.addEventListener("pointerdown", handleCanvasPointer);
   document.getElementById("view-mode").addEventListener("change", changeView);
@@ -563,6 +570,8 @@ function idbPut(db, key, value) {
 }
 
 async function persistGameState(reason = "autosave") {
+  // Lifecycle events must not checkpoint defaults before the saved game is loaded.
+  if(!runtime.ready)return;
   gameState.saveRevision+=1;
   gameState.lastSavedAt=Date.now();
   // A navigation may cancel IndexedDB work. Checkpoint the command synchronously.
@@ -620,7 +629,7 @@ function frameLoop(timestamp) {
   const deltaSeconds = Math.min((timestamp - runtime.lastFrame) / 1000, 0.25);
   runtime.lastFrame = timestamp;
 
-  if (runtime.mode === "playing" && !document.hidden) {
+  if (runtime.mode === "playing" && !runtime.settingsOpen && !document.hidden) {
     runtime.accumulator += deltaSeconds;
     runtime.autoSaveTimer += deltaSeconds;
 
@@ -1084,6 +1093,7 @@ function handleCanvasPointer(event) {
 }
 
 function serveTable(tableId) {
+  if(runtime.settingsOpen)return;
   if (runtime.mode !== "playing") return;
   const tableLayout = getTableLayout(tableId);
   if (!tableLayout) return;
@@ -1161,6 +1171,7 @@ function getCanvasPoint(event) {
 }
 
 function handleStartButton() {
+  if (!runtime.ready || runtime.settingsOpen) return;
   if (runtime.mode === "playing") {
     return;
   }
@@ -1205,7 +1216,7 @@ async function handleInstallButton() {
 
 function buyUpgrade(kind) {
   if(IS_STORY && (runtime.mode!=='playing' && runtime.mode!=='title'))return;
-  if (runtime.mode === "title" && !gameState.levelComplete) {
+  if (runtime.mode === "title" && !gameState.levelComplete && !runtime.settingsOpen) {
     handleStartButton();
   }
 
@@ -1250,6 +1261,7 @@ function buyUpgrade(kind) {
 }
 
 function togglePause() {
+  if (runtime.settingsOpen) return;
   if (runtime.mode === "title") {
     return;
   }
@@ -1296,7 +1308,7 @@ async function handleVisibilityChange() {
     return;
   }
 
-  if (!runtime.hiddenStartedAt || runtime.mode !== "playing") {
+  if (!runtime.hiddenStartedAt || runtime.mode !== "playing" || runtime.settingsOpen) {
     runtime.hiddenStartedAt = null;
     runtime.lastFrame = 0;
     return;
@@ -1348,19 +1360,20 @@ function applyResumeSimulation(elapsedSeconds) {
 }
 
 function renderScene(timestamp) {
+  if (!runtime.sceneTimestamp || (runtime.mode === 'playing' && !runtime.settingsOpen)) runtime.sceneTimestamp=timestamp;
   if (runtime.view3d && runtime.scene3d) {
-    runtime.scene3d.render(gameState, timestamp, runtime.mode === "playing");
+    runtime.scene3d.render(gameState, timestamp, runtime.mode === "playing" && !runtime.settingsOpen);
     renderToast();
     return;
   }
   ctx.clearRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
   drawRoom();
   drawTables();
-  drawCustomers(timestamp);
+  drawCustomers(runtime.sceneTimestamp);
   drawFloatingTexts();
 
   if (gameState.weatherState === "rain") {
-    drawRainOverlay(timestamp);
+    drawRainOverlay(runtime.sceneTimestamp);
   }
 
   drawDaylightOverlay();
@@ -1919,14 +1932,20 @@ function updateHud() {
   const busyTables = gameState.tables.filter((table) => table.status !== "empty").length;
   const shiftPhase = getShiftPhaseInfo(gameState.levelElapsed);
 
-  ui.coinsValue.textContent = String(gameState.coins);
+  ui.coinsValue.textContent = compactNumber(gameState.coins);
+  ui.coinsValue.parentElement.setAttribute('aria-label',`${gameState.coins} xu`);
   ui.scoreValue.textContent = String(gameState.score);
-  ui.servedValue.textContent = String(gameState.totalServed);
+  ui.servedValue.textContent = IS_STORY ? `${compactNumber(gameState.levelServed)}/${dailyTarget()}` : compactNumber(gameState.totalServed);
+  document.getElementById('served-status').setAttribute('aria-label',IS_STORY ? `Đã phục vụ ${gameState.levelServed} trên ${dailyTarget()} khách` : `Đã phục vụ ${gameState.totalServed} khách`);
   ui.tipsValue.textContent = String(gameState.tipCoins);
   ui.weatherValue.textContent =
     gameState.weatherState === "rain"
-      ? `mưa ${Math.ceil(gameState.weatherRemaining)}s`
-      : "nắng ráo";
+      ? `${Math.ceil(gameState.weatherRemaining)}s`
+      : "Nắng";
+  const weatherIcon=document.getElementById('weather-icon');
+  weatherIcon.src=`./vendor/lucide/icons/${gameState.weatherState==='rain'?'cloud-rain':'sun'}.svg`;
+  ui.weatherValue.parentElement.title=gameState.weatherState==='rain'?`Mưa còn ${Math.ceil(gameState.weatherRemaining)} giây`:'Trời nắng';
+  ui.weatherValue.parentElement.setAttribute('aria-label',ui.weatherValue.parentElement.title);
   ui.tablesValue.textContent = `${busyTables} / ${TABLE_LAYOUT.length}`;
   ui.flowValue.textContent = `${gameState.levelServed}/${dailyTarget()} khách (+5 xu)`;
   ui.saveValue.textContent = formatSaveStatus(runtime.saveStatus);
@@ -1934,10 +1953,15 @@ function updateHud() {
   ui.shiftValue.textContent = gameState.levelComplete
     ? "Hoàn tất"
     : `${shiftPhase.labelVi} ${formatCountdown(shiftPhase.remainingInPhase)}`;
-  ui.pauseButton.innerHTML =
-    runtime.mode === "paused"
-      ? 'Bán tiếp<small>quay lại phục vụ</small>'
-      : 'Tạm dừng<small>ngưng phục vụ</small>';
+  if(!IS_STORY) {
+    document.getElementById('chapter-title').textContent=`Ngày ${compactNumber(gameState.dayNumber)}`;
+    document.getElementById('hud-time').textContent=ui.shiftValue.textContent;
+  }
+  const paused=runtime.mode==='paused';
+  ui.pauseButton.querySelector('img').src=`./vendor/lucide/icons/${paused?'play':'pause'}.svg`;
+  ui.pauseButton.title=paused?'Bán tiếp':'Tạm dừng';
+  ui.pauseButton.setAttribute('aria-label',ui.pauseButton.title);
+  ui.pauseButton.disabled=runtime.mode==='title'||gameState.levelComplete;
 
   ui.upgradeServe.disabled = gameState.serveLevel > 0 || gameState.coins < 10;
   ui.upgradeServe.innerHTML =
@@ -2573,6 +2597,7 @@ function exposeDebugState() {
         view: runtime.view3d ? "3d" : "2d",
         renderer: runtime.scene3d?.diagnostics() ?? null,
         mode: runtime.mode,
+        settingsOpen: runtime.settingsOpen,
         saveStatus: runtime.saveStatus,
         tables: structuredClone(gameState.tables),
         customers: structuredClone(gameState.customers),
@@ -2621,7 +2646,7 @@ async function changeView() {
   select.disabled = true;
   try {
     if (select.value === "3d" && !runtime.scene3d) {
-      const { createScene3D } = await import("./scene3d.js?v=18");
+      const { createScene3D } = await import("./scene3d.js?v=19");
       runtime.scene3d = await createScene3D(canvas, TABLE_LAYOUT, serveTable, () => {
         fallback();
         // A lost context must not be selected again until the page is reloaded.
@@ -2652,13 +2677,42 @@ function storyFeedback(text) {
   document.getElementById('story-feedback').textContent=text;
 }
 
+function compactNumber(value) {
+  if(value<1000)return String(value);
+  return `${Number((value/(value<1e6?1000:1e6)).toFixed(1))}${value<1e6?'k':'m'}`;
+}
+
+function bindSettings() {
+  const dialog=document.getElementById('settings-dialog');
+  document.getElementById('settings-button').addEventListener('click',()=>{
+    if(dialog.open)return;
+    runtime.settingsOpen=true;
+    runtime.lastFrame=0;runtime.accumulator=0;
+    dialog.showModal();
+    updateHud();
+    void persistGameState('settings');
+  });
+  document.getElementById('close-settings').addEventListener('click',()=>dialog.close());
+  dialog.addEventListener('close',()=>{
+    runtime.settingsOpen=false;
+    runtime.lastFrame=0;runtime.accumulator=0;
+    updateHud();
+    document.getElementById('settings-button').focus();
+  });
+  dialog.addEventListener('click',event=>{
+    const rect=dialog.getBoundingClientRect();
+    if(event.target===dialog&&(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom))dialog.close();
+  });
+}
+
 function bindStoryControls() {
   document.getElementById('story-panel').hidden=!IS_STORY;
-  document.getElementById('chapter-band').hidden=!IS_STORY;
+  document.getElementById('chapter-band').hidden=false;
+  document.querySelector('.streak-status').hidden=!IS_STORY;
   document.getElementById('upgrade-slot').hidden=!IS_STORY;
   if(!IS_STORY){document.getElementById('game-subtitle').textContent='Classic';return;}
   document.getElementById('prepare-drink').addEventListener('click',()=>{
-    if(runtime.mode!=='playing')return;
+    if(runtime.mode!=='playing'||runtime.settingsOpen)return;
     const value={drink:document.querySelector('[name="drink"]:checked').value,ice:document.getElementById('recipe-ice').value,sugar:document.getElementById('recipe-sugar').value};
     const batch=story.prepare(gameState.campaign,value,gameState.dayNumber,gameState.serveLevel>0);
     if(!batch)return;
@@ -2670,18 +2724,18 @@ function bindStoryControls() {
     runtime.selectedBatchId=gameState.campaign.batches[index]?.id??null;updateHud();
   });
   document.getElementById('discard-drink').addEventListener('click',()=>{
-    if(runtime.mode!=='playing')return;
+    if(runtime.mode!=='playing'||runtime.settingsOpen)return;
     gameState.campaign.batches=gameState.campaign.batches.filter(batch=>batch.id!==runtime.selectedBatchId);
     runtime.selectedBatchId=null;storyFeedback('Đã dọn ly.');void persistGameState('discarded');updateHud();
   });
   document.getElementById('deliver-drink').addEventListener('click',()=>{
-    if(runtime.mode!=='playing')return;
+    if(runtime.mode!=='playing'||runtime.settingsOpen)return;
     const customer=gameState.customers.find(c=>c.id===runtime.selectedCustomerId);
     const result=story.deliver(gameState.campaign,customer,runtime.selectedBatchId);
-    if(result==='wrong')storyFeedback('Chưa đúng vị khách gọi. Ly vẫn trên khay; bạn có thể đổi khách hoặc pha lại.');
+    if(result==='wrong')storyFeedback('Chưa đúng món. Chọn lại khách hoặc pha lại.');
     if(result==='served') {
       finishService(customer,getTableState(customer.tableId));
-      storyFeedback(`Đúng vị! Chuỗi ${gameState.campaign.streak}${customer.order.regularId?' · '+story.REGULARS[customer.order.regularId].name+' đã nhớ quán.':''}`);
+      storyFeedback(`Chuỗi ${gameState.campaign.streak}${customer.order.regularId?' · '+story.REGULARS[customer.order.regularId].name+' +1':''}`);
       runtime.selectedBatchId=null;runtime.selectedCustomerId=null;
     }
     void persistGameState(result==='served'?'served':'order-check');updateHud();
@@ -2709,22 +2763,33 @@ function updateStoryHud() {
       button.addEventListener('click',()=>{runtime.selectedCustomerId=customer.id;updateHud();});
     }
     const order=customer.order;
-    const title=`${story.REGULARS[order.regularId]?.name||'Bàn '+(getTableLayout(customer.tableId).index+1)} · ${story.DRINKS[order.drink].name}`;
+    const seatLabel=`B${getTableLayout(customer.tableId).index+1}${customer.seatIndex===0?'A':'B'}`;
+    const title=`${story.REGULARS[order.regularId]?.name||seatLabel} · ${story.DRINKS[order.drink].name}`;
     button.querySelector('span').textContent=`${title}\n${order.ice==='less'?'Ít đá · ':''}${order.sugar==='less'?'Ít ngọt · ':''}${Math.max(0,Math.ceil(MAX_WAIT_SECONDS-customer.waitElapsed))}s`;
-    button.setAttribute('aria-label',customer.orderText);
+    button.setAttribute('aria-label',`${seatLabel}. ${customer.orderText}`);
+    button.title=`${seatLabel}. ${customer.orderText}`;
     button.setAttribute('aria-pressed',String(customer.id===runtime.selectedCustomerId));
   }
-  document.getElementById('chapter-title').textContent=`Ngày ${gameState.dayNumber} · ${story.chapter(gameState.dayNumber).title}`;
-  document.getElementById('chapter-progress').textContent=`Chuỗi ${campaign.streak} · Lan ${campaign.relationships.lan} / Minh ${campaign.relationships.minh}`;
+  const chapterTitle=document.getElementById('chapter-title');
+  chapterTitle.textContent=`Ngày ${compactNumber(gameState.dayNumber)}`;
+  chapterTitle.title=`Ngày ${gameState.dayNumber} · ${story.chapter(gameState.dayNumber).title}`;
+  document.getElementById('chapter-progress').textContent=compactNumber(campaign.streak);
+  document.getElementById('chapter-progress').parentElement.setAttribute('aria-label',`Chuỗi phục vụ ${campaign.streak}`);
+  document.getElementById('hud-time').textContent=ui.shiftValue.textContent;
+  const details=document.getElementById('settings-progress');
+  details.hidden=false;
+  details.textContent=`${chapterTitle.title} · Cô Lan ${campaign.relationships.lan} · Minh ${campaign.relationships.minh}`;
   if(!campaign.batches.some(b=>b.id===runtime.selectedBatchId))runtime.selectedBatchId=campaign.batches[0]?.id??null;
   const batch=campaign.batches.find(b=>b.id===runtime.selectedBatchId);
   for(let index=0;index<2;index++) {
     const node=document.getElementById(`batch-${index}`),item=campaign.batches[index];
-    node.textContent=item?`${story.DRINKS[item.drink].name} · ${story.ready(item)?'Sẵn sàng':Math.ceil(item.duration-item.elapsed)+'s'}${item.ice==='less'?' · ít đá':''}${item.sugar==='less'?' · ít ngọt':''}`:index>=story.capacity(campaign)?'Chỗ pha chưa mở':'Khay trống';
+    node.textContent=item?`${item.drink==='coffee'?'Cà phê':story.DRINKS[item.drink].name} · ${story.ready(item)?'Xong':Math.ceil(item.duration-item.elapsed)+'s'}${item.ice==='less'?'\nÍt đá':''}${item.sugar==='less'?' · ít ngọt':''}`:index>=story.capacity(campaign)?'Chưa mở':'Trống';
+    node.title=item?`${story.orderText(item)} ${story.ready(item)?'Sẵn sàng':'Đang pha'}`:index>=story.capacity(campaign)?'Mở thêm chỗ pha trong cài đặt':'Khay trống';
+    node.setAttribute('aria-label',node.title);
     node.disabled=!item;node.setAttribute('aria-pressed',String(item?.id===runtime.selectedBatchId));
     node.style.setProperty('--brew-progress',item?`${Math.min(100,item.elapsed/item.duration*100)}%`:'0%');
   }
-  const playing=runtime.mode==='playing';
+  const playing=runtime.mode==='playing'&&!runtime.settingsOpen;
   ui.upgradeServe.disabled ||= runtime.mode==='paused';
   ui.upgradeUmbrella.disabled ||= runtime.mode==='paused';
   document.getElementById('prepare-drink').disabled=!playing||campaign.batches.length>=story.capacity(campaign);
@@ -2740,10 +2805,14 @@ function updateStoryHud() {
     if(input.disabled&&input.checked)document.querySelector('[name="drink"][value="tea"]').checked=true;
   }
   const upgrade=document.getElementById('upgrade-slot');
-  upgrade.disabled=!playing||campaign.extraSlot||gameState.coins<15||gameState.dayNumber<2;
+  upgrade.disabled=runtime.mode!=='playing'||campaign.extraSlot||gameState.coins<15||gameState.dayNumber<2;
   upgrade.innerHTML=campaign.extraSlot?'Thêm chỗ pha<small>đã mở</small>':'Thêm chỗ pha<small>15 xu · ngày 2</small>';
-  if(campaign.closing)ui.shiftValue.textContent='Đang dọn ca';
-  if(gameState.dayNumber>=4&&gameState.weatherState==='clear')ui.weatherValue.textContent=`Mưa sau ${Math.ceil(gameState.nextWeatherRollIn)}s`;
+  if(campaign.closing)ui.shiftValue.textContent=document.getElementById('hud-time').textContent='Dọn ca';
+  if(gameState.dayNumber>=4&&gameState.weatherState==='clear') {
+    ui.weatherValue.textContent=`${Math.ceil(gameState.nextWeatherRollIn)}s`;
+    ui.weatherValue.parentElement.title=`Mưa sau ${Math.ceil(gameState.nextWeatherRollIn)} giây`;
+    ui.weatherValue.parentElement.setAttribute('aria-label',ui.weatherValue.parentElement.title);
+  }
 }
 
 function drawOrderBubble(x, y, orderText, statusText) {

@@ -49,6 +49,7 @@ try {
   await page.click('#start-button');await page.click('#deliver-drink');
   await page.waitForFunction(()=>window.__planBGame.getSnapshot().totalServed===1);
   state=await snapshot(page);assert.equal(state.campaign.batches.length,0);assert.ok(state.coins>50);
+  await page.click('#settings-button');
   await page.click('#upgrade-slot');assert.equal((await snapshot(page)).campaign.extraSlot,true);
   await page.reload();await page.waitForFunction(()=>window.__planBGame);
   state=await snapshot(page);assert.equal(state.totalServed,1);assert.equal(state.campaign.extraSlot,true);
@@ -82,6 +83,7 @@ try {
   }
   page=await open(base({dayNumber:4,nextWeatherRollIn:.2,customers:[]}));
   await page.click('#start-button');await page.waitForFunction(()=>window.__planBGame.getSnapshot().weatherState==='rain');
+  await page.click('#settings-button');
   await page.click('#upgrade-umbrella');assert.equal((await snapshot(page)).umbrellaOwned,true);
   await page.context().close();console.log('PASS five-day progression, single bonuses, regular arrival and forecast rain');
 

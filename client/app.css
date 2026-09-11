@@ -408,86 +408,118 @@ button {
 .playfield-frame:has(#game-canvas-3d:not([hidden])) .order-caption:not(:empty) { display: block; }
 
 [hidden] { display: none !important; }
-.mode-links { display:flex; justify-content:space-between; gap:12px; font-size:12px; }
-.mode-links a { color:inherit; }
-.story-mode { background:#eef2ef; color:#223b36; }
+button, select, input { font:inherit; }
+button, a, select, input { -webkit-tap-highlight-color:transparent; }
+button:focus-visible, a:focus-visible, select:focus-visible { outline:2px solid #24796b; outline-offset:2px; }
+.game-header { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px; }
+.header-actions { display:flex; gap:4px; }
+.icon-button { display:grid; place-items:center; width:44px; height:44px; flex:none; border:1px solid #c5d3cf; border-radius:6px; background:#fff; padding:10px; cursor:pointer; }
+.icon-button img { width:22px; height:22px; pointer-events:none; }
+.icon-button:disabled { opacity:.4; cursor:default; }
+.game-header .status-strip { grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; }
+.game-header .status-chip { min-height:40px; min-width:0; padding:4px; gap:4px; font-size:14px; letter-spacing:0; text-transform:none; white-space:nowrap; border-radius:4px; }
+.game-header .status-icon { width:20px; height:20px; }
+.status-chip span { font-variant-numeric:tabular-nums; }
+.mode-links { display:flex; justify-content:space-between; gap:12px; font-size:13px; }
+.mode-links a { color:inherit; padding:10px 0; }
+#settings-dialog { width:min(440px,calc(100% - 24px)); max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow:auto; overscroll-behavior:contain; padding:16px; border:1px solid #b7cbc3; border-radius:8px; color:#233c36; background:#f8fbfa; box-shadow:0 12px 48px #173c3540; }
+#settings-dialog::backdrop { background:#16382f80; }
+.settings-heading { position:sticky; top:-16px; z-index:1; display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; background:#f8fbfa; }
+.settings-heading h2 { font-size:20px; margin:0; }
+#settings-dialog .control-panel { gap:12px; border:0; padding:0; }
+#settings-dialog .view-toolbar { gap:12px; }
+#settings-dialog .view-control { margin:0; font-size:13px; min-height:44px; }
+#settings-dialog select { min-height:44px; font-size:16px; border:1px solid #b7cbc3; border-radius:4px; background:#fff; }
+#settings-dialog .meta-row { grid-template-columns:1fr 1fr; gap:0 16px; }
+#settings-dialog .meta-pill { background:none; color:inherit; border-radius:0; font-size:13px; padding:8px 0; gap:6px; }
+#settings-dialog .meta-label { font-size:11px; letter-spacing:0; text-transform:none; }
+#settings-dialog .action-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+#settings-dialog .action-button { background:#fff; color:#244338; border:1px solid #c3d3cb; border-radius:6px; min-height:54px; font-size:13px; padding:8px; box-shadow:none; }
+#settings-dialog .action-button small { font-size:11px; }
+#settings-dialog .danger-button { color:#aa3934; min-height:44px; background:none; align-items:center; }
+#settings-progress { margin:0; line-height:1.5; font-size:13px; }
+.story-mode { background:#eef3f1; color:#223b36; }
 .story-mode * { letter-spacing:0; }
-.story-mode .app-shell { padding:12px; }
-.story-mode .game-shell { width:min(100%,1120px); }
-.story-mode .game-card { min-height:0; max-height:none; background:none; border:0; border-radius:0; padding:0; box-shadow:none; gap:8px; }
-.story-mode .status-strip { grid-template-columns:repeat(3,minmax(0,1fr)); }
-.story-mode .status-chip { border-radius:4px; min-height:38px; padding:6px; background:#fff; color:#24413b; }
-.story-mode .status-chip:nth-child(2),.story-mode .status-chip:nth-child(4) { display:none; }
-.story-mode .status-icon { width:22px; height:22px; }
-#chapter-band { display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px; font-size:14px; padding:6px 0; }
-#chapter-progress { color:#596860; font-size:12px; }
-.story-mode .playfield-frame { flex:none; min-height:0; border:0; border-radius:0; background:#c7dfdd; }
-.story-mode .overlay { background:#173c3540; backdrop-filter:blur(2px); padding:12px; z-index:3; }
-.story-mode .overlay-card { background:#fff; border-radius:8px; max-height:100%; overflow:auto; }
-.story-mode .overlay-card h1 { font-size:26px; line-height:1.1; }
-.story-mode .overlay-card p { font-size:14px; line-height:1.4; }
-.story-mode .primary-button { background:#24796b; box-shadow:none; border-radius:4px; }
+.story-mode .app-shell { height:100dvh; min-height:0; padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left)); }
+.story-mode .game-shell { width:min(100%,1120px); height:100%; }
+.story-mode .game-card { height:100%; min-height:0; max-height:none; display:grid; grid-template-rows:44px 24px minmax(0,1fr) auto; gap:6px; background:none; border:0; border-radius:0; padding:0; box-shadow:none; }
+.story-mode .status-chip { background:none; color:#24413b; }
+#chapter-band { display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; font-size:13px; line-height:20px; }
+#chapter-title { white-space:nowrap; }
+#hud-time { font-variant-numeric:tabular-nums; }
+.story-mode #hud-time { color:#576e64; }
+.streak-status { display:flex; align-items:center; gap:3px; min-width:32px; justify-content:end; }
+.streak-status img { width:16px; height:16px; }
+#chapter-progress { font-size:12px; font-variant-numeric:tabular-nums; }
+.story-mode .playfield-frame { container-type:size; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr); width:100%; height:100%; min-height:0; border:0; border-radius:0; aspect-ratio:auto; background:#a9d8dc; }
+.story-mode .playfield-frame canvas { min-width:0; min-height:0; width:min(100cqw,177.7778cqh); height:auto; aspect-ratio:16/9; }
+.story-mode .playfield-frame #game-canvas-3d { width:100%; height:100%; aspect-ratio:auto; }
+.story-mode .overlay { background:#173c3540; backdrop-filter:blur(2px); padding:8px; z-index:3; }
+.story-mode .overlay-card { background:#fff; border-radius:8px; max-height:100%; overflow:auto; padding:12px; }
+.story-mode .overlay-card h1 { font-size:22px; line-height:1.1; margin:4px 0 8px; }
+.story-mode .overlay-card p { font-size:13px; line-height:1.4; }
+.story-mode .primary-button { min-height:44px; background:#24796b; box-shadow:none; border-radius:4px; padding:10px; }
+.story-mode .overlay-actions { margin-top:10px; flex-direction:row; }
 .story-mode .order-caption { display:none !important; }
-.story-mode .toast { padding:8px 12px; font-size:13px; border-radius:4px; min-width:0; width:max-content; max-width:90%; background:#183b35ed; }
-#story-panel { border-top:2px solid #24796b; padding:8px 0 0; }
-.order-list { display:flex; gap:6px; overflow-x:auto; min-height:67px; max-width:100%; padding-bottom:4px; }
-.order-list:empty::before { content:'Quán đang đợi khách'; align-self:center; color:#78857f; font-size:13px; }
-.order-list button { display:flex; align-items:center; gap:4px; flex:0 0 172px; padding:5px; background:#fff; border:1px solid #becbc5; border-radius:4px; color:#233e35; text-align:left; }
-.order-list img { width:30px; height:46px; object-fit:contain; }
-.order-list span { white-space:pre-line; font-size:12px; line-height:1.35; }
+.story-mode .toast { padding:6px 10px; font-size:12px; border-radius:4px; min-width:0; width:max-content; max-width:90%; background:#183b35ed; }
+#story-panel { display:grid; grid-template-rows:56px 106px 54px 28px; gap:4px; min-width:0; border-top:1px solid #9fbdb0; padding-top:6px; }
+.order-list { display:flex; gap:6px; overflow-x:auto; overflow-y:hidden; min-width:0; max-width:100%; scrollbar-width:thin; scroll-snap-type:x proximity; }
+.order-list:empty::before { content:'Đợi khách'; align-self:center; color:#78857f; font-size:12px; }
+.order-list button { display:flex; align-items:center; gap:4px; flex:0 0 150px; height:50px; min-width:0; padding:3px 5px; background:#fff; border:1px solid #becbc5; border-radius:4px; color:#233e35; text-align:left; scroll-snap-align:start; cursor:pointer; }
+.order-list img { width:26px; height:40px; object-fit:contain; }
+.order-list span { white-space:pre-line; font-size:11px; line-height:1.25; }
 .story-mode [aria-pressed="true"] { outline:2px solid #237f70; outline-offset:-2px; }
-.preparation-row { display:flex; align-items:end; gap:14px; flex-wrap:wrap; padding:4px 0; }
-.recipe-picker { display:flex; gap:4px; padding:0; border:0; margin:0; }
-.recipe-picker legend { font-size:11px; color:#5b6e63; }
-.recipe-picker label { display:flex; flex-direction:column; align-items:center; width:84px; padding:2px 4px; font-size:12px; border-bottom:3px solid transparent; cursor:pointer; }
+.preparation-row { display:grid; grid-template-rows:44px 58px; gap:4px; min-width:0; }
+.recipe-picker { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; padding:0; border:0; margin:0; min-width:0; }
+.recipe-picker legend { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+.recipe-picker label { display:flex; align-items:center; justify-content:center; gap:4px; min-width:0; height:44px; padding:3px; font-size:12px; border-bottom:3px solid transparent; cursor:pointer; }
 .recipe-picker label:has(:checked) { background:#d8eae2; border-color:#257968; }
 .recipe-picker label:has(:disabled) { opacity:.4; cursor:default; }
 .recipe-picker input { position:absolute; opacity:0; width:1px; height:1px; }
 .recipe-picker label:has(:focus-visible) { outline:2px solid #24796b; }
-.recipe-picker img { width:34px; height:40px; }
-.recipe-options { display:flex; gap:8px; align-items:end; }
-.recipe-options label { display:flex; flex-direction:column; gap:3px; font-size:11px; }
-.recipe-options select { min-height:34px; font:inherit; font-size:13px; border:1px solid #b1c5bb; padding:4px; background:white; border-radius:4px; }
-#prepare-drink,#deliver-drink { background:#267d6c; color:white; border:0; border-radius:4px; padding:9px 16px; min-height:36px; }
-#deliver-drink { background:#c6574c; }
-.tray-row { display:grid; grid-template-columns:1fr 1fr auto auto; gap:6px; margin-top:6px; }
-.batch-slot { position:relative; min-height:43px; border:1px solid #bac8bf; border-radius:4px; background:#fff; color:#25493d; font-size:12px; padding:6px; }
+.recipe-picker img { width:24px; height:32px; flex:none; }
+.recipe-options { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 76px; gap:6px; align-items:end; }
+.recipe-options label { display:flex; flex-direction:column; gap:2px; font-size:10px; line-height:12px; min-width:0; }
+.recipe-options select { width:100%; min-width:0; height:44px; font-size:16px; border:1px solid #b1c5bb; padding:4px 6px; background:white; border-radius:4px; }
+#prepare-drink,#deliver-drink { height:44px; min-width:0; background:#267d6c; color:white; border:0; border-radius:4px; padding:8px; font-size:14px; cursor:pointer; }
+#deliver-drink { background:#c6574c; height:54px; }
+.tray-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px 76px; gap:4px; min-width:0; }
+.batch-slot { position:relative; min-width:0; height:54px; border:1px solid #bac8bf; border-radius:4px; background:#fff; color:#25493d; font-size:11px; line-height:13px; padding:3px; white-space:pre-line; overflow-wrap:anywhere; cursor:pointer; }
 .batch-slot::after { content:''; position:absolute; bottom:0; left:0; height:3px; width:var(--brew-progress,0%); background:#3d9680; }
-#discard-drink { border:1px solid #bac8bf; background:transparent; border-radius:4px; padding:6px; }
-#story-feedback { min-height:18px; margin:5px 0; font-size:12px; color:#54645b; }
+#discard-drink { height:54px; background:transparent; }
+#story-feedback { min-width:0; height:28px; margin:0; font-size:12px; line-height:14px; color:#54645b; overflow:hidden; }
 .story-mode button:disabled { opacity:.45; cursor:default; }
-.story-mode .control-panel { border-top:1px solid #c8d3cd; padding-top:6px; gap:6px; }
-.story-mode .view-control { font-size:12px; margin:0; }
-.story-mode .meta-row { grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; }
-.story-mode .meta-pill { color:#304b40; background:none; border-radius:0; padding:4px; font-size:12px; }
-.story-mode .meta-pill:nth-child(3) { display:none; }
-.story-mode .meta-label { font-size:10px; }
-.story-mode .action-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px; }
-.story-mode .action-button { min-height:40px; border:1px solid #c3cfc7; border-radius:4px; background:#fff; color:#2e483d; padding:6px; font-size:12px; }
-.story-mode .action-button small { color:#718477; }
-@media(max-width:640px) {
-  .story-mode .app-shell { padding:8px; }
-  .story-mode .overlay-card h1 { font-size:20px; margin:3px 0; }
-  .story-mode .overlay-card p { font-size:12px; line-height:1.3; }
-  .story-mode .overlay-actions { margin-top:8px; }
-  .story-mode .overlay-actions button { padding:8px; }
-  .preparation-row { gap:6px; justify-content:space-between; }
-  .recipe-picker label { width:74px; }
-  .recipe-options { width:100%; justify-content:space-between; }
-  .recipe-options label { flex:1; }
-  .tray-row { grid-template-columns:1fr 1fr; }
-  .story-mode .action-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
-  .story-mode .meta-pill { gap:4px; }
-}
 @media(min-width:900px) {
-  .story-mode .game-card { display:grid; grid-template-columns:minmax(0,1fr)320px; align-items:start; }
-  .story-mode .status-strip,.story-mode #chapter-band,.story-mode .control-panel { grid-column:1 / -1; }
-  .story-mode .playfield-frame { align-self:stretch; min-height:430px; aspect-ratio:auto; }
-  .story-mode #story-panel { border-top:0; border-left:1px solid #becfc5; padding:0 0 0 12px; }
-  .story-mode .order-list { max-height:134px; min-height:67px; flex-wrap:wrap; overflow-y:auto; }
-  .story-mode .order-list button { flex:1 0 145px; }
-  .story-mode .preparation-row { flex-direction:column; align-items:stretch; gap:8px; }
-  .story-mode .recipe-picker { justify-content:space-between; }
-  .story-mode .recipe-options { justify-content:space-between; }
-  .story-mode .tray-row { grid-template-columns:1fr 1fr; }
+  .story-mode .app-shell { height:auto; min-height:100dvh; padding:12px; }
+  .story-mode .game-card { height:auto; grid-template-columns:minmax(0,1fr)320px; grid-template-rows:44px 24px auto; align-items:start; }
+  .story-mode .game-header,.story-mode #chapter-band { grid-column:1 / -1; }
+  .story-mode .playfield-frame { height:auto; aspect-ratio:16/10; min-height:400px; }
+  .story-mode #story-panel { border-top:0; border-left:1px solid #becfc5; padding:0 0 0 12px; grid-template-rows:120px 106px 54px 28px; }
+  .story-mode .order-list { flex-wrap:wrap; overflow-y:auto; align-content:start; }
+  .story-mode .order-list button { flex:1 0 140px; }
+}
+@media(max-width:899px) and (orientation:landscape) {
+  .story-mode .app-shell { padding:max(6px,env(safe-area-inset-top)) max(6px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left)); }
+  .story-mode .game-card { grid-template-columns:minmax(0,1fr) minmax(260px,42%); grid-template-rows:44px 20px minmax(0,1fr); gap:4px 8px; }
+  .story-mode .game-header,.story-mode #chapter-band { grid-column:1 / -1; }
+  .story-mode #story-panel { align-self:start; border-top:0; padding:0; grid-template-rows:50px 100px 50px 20px; gap:2px; }
+  .story-mode .preparation-row { grid-template-rows:44px 54px; gap:2px; }
+  .story-mode .recipe-options { grid-template-columns:minmax(0,1fr) minmax(0,1fr) 58px; gap:4px; }
+  .story-mode .recipe-options label { line-height:10px; gap:0; }
+  .story-mode .recipe-picker label { font-size:11px; gap:2px; }
+  .story-mode .recipe-picker img { width:20px; height:28px; }
+  .story-mode .tray-row { grid-template-columns:minmax(0,1fr) minmax(0,1fr) 36px 62px; gap:3px; }
+  .story-mode .batch-slot,.story-mode #deliver-drink,.story-mode #discard-drink { height:50px; }
+  .story-mode #discard-drink { width:36px; padding:7px; }
+  .story-mode #deliver-drink { padding:4px; font-size:13px; white-space:nowrap; }
+  .story-mode #story-feedback { height:20px; line-height:10px; font-size:10px; }
+}
+@media(max-width:350px) and (orientation:portrait) {
+  .game-header { gap:4px; }
+  .game-header .status-chip { font-size:12px; gap:2px; }
+  .game-header .status-icon { width:17px; height:17px; }
+  .recipe-picker label { font-size:11px; }
+  .recipe-picker img { width:21px; }
+  .story-mode .overlay-card h1 { font-size:18px; margin:3px 0; }
+  .story-mode .overlay-card p { font-size:12px; line-height:1.3; }
 }

@@ -72,7 +72,7 @@ automated checks cannot establish whether the redesign is fun or AAA quality.
 - Design and pre-implementation logic review complete.
 - Five-day campaign, dual modes, UI, drink assets and persistence implemented.
 - Pure rules, story browser flows and Classic regression checks passed locally.
-- Deployment is gated by the GitHub workflow, which repeats all five test commands.
+- Deployment is gated by the GitHub workflow, which repeats all six test commands.
 
 ## Post-implementation review
 
@@ -99,9 +99,29 @@ automated checks cannot establish whether the redesign is fun or AAA quality.
 ## Test commands
 
 From `client`: `npm run rules`, `npm run story`, `npm run smoke`, `npm run flow`,
-and `npm run visual`. Story tests include wrong orders, remake, pause, immediate
+`npm run mobile`, and `npm run visual`. Story tests include wrong orders, remake, pause, immediate
 reload, equipment, save isolation, all five chapters, single rewards, a regular
 arrival, rain and desktop/mobile 3D screenshots with pixel and overflow checks.
 
 Human playtesting is still needed to establish enjoyment, difficulty and retention.
 The shipped campaign is a polished playable scope, not a claim of AAA production.
+
+## Mobile layout review
+
+- A safe-area-aware viewport grid keeps status, scene, orders and preparation on
+  one screen. Landscape moves preparation beside the scene. Short labels and
+  stable controls avoid layout changes as timers, recipes and balances change.
+- Top settings and pause buttons use offline Lucide icons. View, zoom, upgrades,
+  detailed statistics, mode selection and reset live in a native modal dialog.
+- Settings freeze simulation without changing the prior play/pause state. Closing
+  or pressing Escape restores focus and preserves a deliberately paused game.
+  Start/settings and lifecycle checkpoints wait until the existing save has loaded.
+- Portrait 3D framing keeps all tables and the entry aisle visible. Only scenery
+  and camera framing adapt; customer positions, orders and rewards do not change.
+- Rotation testing exposed retained canvas dimensions caused by implicit grid
+  minimums. Explicit zero-minimum tracks now let the canvas shrink correctly.
+- Browser checks cover 320x568, 360x640, 390x844, 430x932, 844x390, 568x320 and
+  1280x900, including overflow, clipped text, settings, focus and frozen timers.
+  Four 3D resize checks verify nonblank pixels, visible tables and unchanged state;
+  a table-picking check verifies input after rotation. Physical phones remain a
+  separate performance and usability check.

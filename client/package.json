@@ -8,6 +8,7 @@
     "visual": "node visual-test.mjs",
     "rules": "node campaign-test.mjs",
     "story": "node story-test.mjs",
+    "mobile": "node mobile-test.mjs",
     "smoke": "node smoke-test.mjs"
   },
   "devDependencies": {

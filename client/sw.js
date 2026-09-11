@@ -1,4 +1,4 @@
-const CACHE_NAME = "sidewalk-iced-tea-planb-v18";
+const CACHE_NAME = "sidewalk-iced-tea-planb-v19";
 const CUSTOMER_ASSET_NAMES = [
   "customer-man",
   "customer-woman",
@@ -54,9 +54,10 @@ const APP_SHELL = [
   "./index.html",
   "./app.css",
   "./app.js",
-  "./app.css?v=18",
-  "./app.js?v=18",
-  "./scene3d.js?v=18",
+  "./app.css?v=19",
+  "./app.js?v=19",
+  "./scene3d.js?v=19",
+  ...['settings','x','pause','play','trash-2','sun','cloud-rain','cup-soda','flame'].map(name=>`./vendor/lucide/icons/${name}.svg`),
   "./campaign.mjs",
   "./public/assets/drinks/tea.svg",
   "./public/assets/drinks/lime.svg",

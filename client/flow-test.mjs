@@ -355,6 +355,7 @@ try {
       await page.goto(serverUrl, { waitUntil: "networkidle" });
       await waitForApp(page);
       await page.click("#start-button");
+      await page.click("#settings-button");
       await page.click("#upgrade-serve");
       await page.waitForFunction(() => window.__planBGame.getSnapshot().serveLevel === 1);
       await page.click("#upgrade-umbrella");

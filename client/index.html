@@ -10,47 +10,46 @@
     <title>Trà Đá Vỉa Hè - Chuyện Góc Phố</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./public/icons/app-icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./app.css?v=18" />
+    <link rel="stylesheet" href="./app.css?v=19" />
   </head>
   <body>
     <div class="app-shell">
       <main class="game-shell">
         <section class="game-card">
-          <div class="status-strip">
-            <div class="status-chip">
+          <header class="game-header">
+          <div class="status-strip" aria-label="Trạng thái quán">
+            <div class="status-chip" title="Xu">
               <img
                 class="status-icon"
                 src="./public/assets/final/icon-coin.png"
                 alt=""
               />
               <span id="coins-value">0</span>
-              <small>xu</small>
             </div>
-            <div class="status-chip">
-              <span id="score-value">0</span>
-              <small>điểm</small>
-            </div>
-            <div class="status-chip">
+            <div class="status-chip" id="served-status" title="Khách đã phục vụ">
+              <img class="status-icon" src="./vendor/lucide/icons/cup-soda.svg" alt="Khách" />
               <span id="served-value">0</span>
-              <small>đã bán</small>
-            </div>
-            <div class="status-chip">
-              <span id="tips-value">0</span>
-              <small>boa</small>
             </div>
             <div class="status-chip status-chip--weather">
               <img
                 class="status-icon"
-                src="./public/assets/final/icon-rain.png"
+                id="weather-icon"
+                src="./vendor/lucide/icons/sun.svg"
                 alt=""
               />
-              <span id="weather-value">nắng ráo</span>
+              <span id="weather-value">Nắng</span>
             </div>
           </div>
+          <div class="header-actions">
+            <button id="pause-button" class="icon-button" type="button" title="Tạm dừng" aria-label="Tạm dừng"><img src="./vendor/lucide/icons/pause.svg" alt="" /></button>
+            <button id="settings-button" class="icon-button" type="button" title="Cài đặt" aria-label="Cài đặt" aria-haspopup="dialog" aria-controls="settings-dialog" disabled><img src="./vendor/lucide/icons/settings.svg" alt="" /></button>
+          </div>
+          </header>
 
           <div id="chapter-band" hidden>
             <strong id="chapter-title">Chuyện góc phố</strong>
-            <span id="chapter-progress"></span>
+            <span id="hud-time"></span>
+            <span class="streak-status" title="Chuỗi phục vụ"><img src="./vendor/lucide/icons/flame.svg" alt="Chuỗi" /><span id="chapter-progress">0</span></span>
           </div>
           <div class="playfield-frame">
             <canvas
@@ -71,7 +70,7 @@
                   tiếng Việt và ngồi vào bàn trước khi rời quán.
                 </p>
                 <div class="overlay-actions">
-                  <button id="start-button" class="primary-button" type="button">
+                  <button id="start-button" class="primary-button" type="button" disabled>
                     Mở quán
                   </button>
                   <button
@@ -108,12 +107,18 @@
             <div class="tray-row">
               <button id="batch-0" type="button" class="batch-slot"></button>
               <button id="batch-1" type="button" class="batch-slot"></button>
-              <button id="discard-drink" type="button" title="Bỏ ly đang chọn">Bỏ ly</button>
+              <button id="discard-drink" class="icon-button" type="button" title="Bỏ ly đang chọn" aria-label="Bỏ ly đang chọn"><img src="./vendor/lucide/icons/trash-2.svg" alt="" /></button>
               <button id="deliver-drink" type="button">Bưng ra</button>
             </div>
             <p id="story-feedback" role="status" aria-live="polite"></p>
           </section>
 
+        </section>
+      </main>
+    </div>
+
+    <dialog id="settings-dialog" aria-labelledby="settings-title">
+      <header class="settings-heading"><h2 id="settings-title">Cài đặt</h2><button id="close-settings" class="icon-button" type="button" title="Đóng" aria-label="Đóng cài đặt" autofocus><img src="./vendor/lucide/icons/x.svg" alt="" /></button></header>
           <div class="control-panel">
             <div class="view-toolbar">
             <label class="view-control" for="view-mode">Góc nhìn
@@ -123,6 +128,7 @@
               <input id="view-zoom" type="range" min="1" max="1.8" value="1" step="0.1" />
             </label>
             </div>
+            <p id="settings-progress" hidden></p>
             <div class="meta-row">
               <div class="meta-pill">
                 <span class="meta-label">Bàn</span>
@@ -140,6 +146,8 @@
                 <span id="shift-label" class="meta-label">Ngày 1</span>
                 <span id="shift-value" class="meta-value">Sáng 0:45</span>
               </div>
+              <div class="meta-pill"><span class="meta-label">Điểm</span><span id="score-value">0</span></div>
+              <div class="meta-pill"><span class="meta-label">Boa</span><span id="tips-value">0</span></div>
             </div>
 
             <div class="action-grid">
@@ -152,21 +160,14 @@
                 Ô che
                 <small>20 xu</small>
               </button>
-              <button id="pause-button" class="action-button" type="button">
-                Tạm dừng
-                <small>ngưng phục vụ</small>
-              </button>
+            </div>
               <button id="reset-button" class="action-button danger-button" type="button">
                 Xóa dữ liệu
-                <small>làm lại từ đầu</small>
               </button>
-            </div>
             <nav class="mode-links" aria-label="Chế độ chơi"><a href="./">Chuyện góc phố</a><a href="./?mode=classic">Classic · bản cũ</a></nav>
           </div>
-        </section>
-      </main>
-    </div>
+    </dialog>
 
-    <script type="module" src="./app.js?v=18"></script>
+    <script type="module" src="./app.js?v=19"></script>
   </body>
 </html>
