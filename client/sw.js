@@ -1,4 +1,4 @@
-const CACHE_NAME = "sidewalk-iced-tea-planb-v22";
+const CACHE_NAME = "sidewalk-iced-tea-planb-v23";
 const CUSTOMER_ASSET_NAMES = [
   "customer-man",
   "customer-woman",
@@ -54,6 +54,7 @@ const APP_SHELL = [
   "./index.html",
   "./app.css",
   "./app.js",
+  "./mobile-game-support.mjs",
   "./app.css?v=22",
   "./app.js?v=22",
   "./scene3d.js?v=22",

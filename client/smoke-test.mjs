@@ -203,6 +203,7 @@ async function verifyCacheOwnership() {
   const eventImport=scene.match(/from ['"](.\/event-scene\.js\?v=\d+)['"]/);
   assert.ok(eventImport&&sandbox.shell.includes(eventImport[1]),'versioned event renderer must be precached');
   const app=await readFile(new URL('./app.js',import.meta.url),'utf8');
+  assert.ok(sandbox.shell.includes('./mobile-game-support.mjs'),'the mobile input module imported by app.js must be precached for offline play');
   const campaignImport=app.match(/from ['"](.\/campaign\.mjs\?v=\d+)['"]/);
   assert.ok(campaignImport&&sandbox.shell.includes(campaignImport[1]),'versioned recipe rules must be precached');
   let finished;

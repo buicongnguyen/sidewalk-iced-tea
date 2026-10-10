@@ -1,3 +1,5 @@
+import { installMobileGameSupport } from './mobile-game-support.mjs';
+installMobileGameSupport({"menus":["#title-overlay .overlay-copy","#settings-dialog"],"controls":[],"fullViewport":false});
 import * as story from './campaign.mjs?v=22';
 import * as street from './events.mjs';
 const IS_STORY = new URLSearchParams(location.search).get('mode') !== 'classic';
